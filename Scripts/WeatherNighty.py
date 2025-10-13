@@ -309,7 +309,7 @@ def NightyWeather():
     def update_time_periodically():
         try:
             addDRPCValue("time", get_time)
-            threading.Timer(3.0, update_time_periodically).start()
+            threading.Timer(5.0, update_time_periodically).start()
         except Exception as e:
             print(f"Error updating time: {str(e)}", type_="ERROR")
 
