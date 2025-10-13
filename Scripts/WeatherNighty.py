@@ -306,20 +306,11 @@ def NightyWeather():
                 return f"https://cdn.weatherapi.com/weather/128x128/{time_of_day}/{icon_code}.png"
         return ""
 
-    def update_time_periodically():
-        try:
-            addDRPCValue("time", get_time)
-            threading.Timer(5.0, update_time_periodically).start()
-        except Exception as e:
-            print(f"Error updating time: {str(e)}", type_="ERROR")
-
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
     addDRPCValue("time", get_time)
     addDRPCValue("weatherState", get_weather_state)
     addDRPCValue("weathericon", get_weather_icon)
-
-    update_time_periodically()
 
     print("NightyWeather running 🌤️", type_="SUCCESS")
     tab.render()
