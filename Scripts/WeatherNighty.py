@@ -37,11 +37,17 @@ def NightyWeather():
                     return json.load(f)
             except Exception:
                 pass
-        return {"data": None, "timestamp": 0, "call_count": 0}
+        return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
 
-    def save_cache(data, timestamp, call_count=0):
+    def save_cache(data, timestamp, call_count=0, live_mode_warning_shown=False, call_limit_warning_shown=False):
         with open(CACHE_PATH, 'w', encoding="utf-8") as f:
-            json.dump({"data": data, "timestamp": timestamp, "call_count": call_count}, f, indent=2)
+            json.dump({
+                "data": data,
+                "timestamp": timestamp,
+                "call_count": call_count,
+                "live_mode_warning_shown": live_mode_warning_shown,
+                "call_limit_warning_shown": call_limit_warning_shown
+            }, f, indent=2)
 
     defaults = {
         "api_key": "", "city": "", "gmt_offset": 0.0,
@@ -58,7 +64,9 @@ def NightyWeather():
         cache["data"] = None
         cache["timestamp"] = 0
         cache["call_count"] = 0
-        save_cache(None, 0, 0)
+        cache["live_mode_warning_shown"] = False
+        cache["call_limit_warning_shown"] = False
+        save_cache(None, 0, 0, False, False)
         print("API key updated! Weather data will refresh automatically. 🌤️", type_="SUCCESS")
 
     def update_city(value):
@@ -68,7 +76,9 @@ def NightyWeather():
             cache["data"] = None
             cache["timestamp"] = 0
             cache["call_count"] = 0
-            save_cache(None, 0, 0)
+            cache["live_mode_warning_shown"] = False
+            cache["call_limit_warning_shown"] = False
+            save_cache(None, 0, 0, False, False)
             print("City updated! Weather data will refresh automatically. 🏙️", type_="SUCCESS")
         else:
             print("Invalid city name (e.g., 'Seoul').", type_="ERROR")
@@ -93,7 +103,9 @@ def NightyWeather():
         cache["data"] = None
         cache["timestamp"] = 0
         cache["call_count"] = 0
-        save_cache(None, 0, 0)
+        cache["live_mode_warning_shown"] = False
+        cache["call_limit_warning_shown"] = False
+        save_cache(None, 0, 0, False, False)
         print("Temperature unit updated! Weather data will refresh automatically. 🌡️", type_="SUCCESS")
 
     def update_cache_mode(selected):
@@ -103,8 +115,14 @@ def NightyWeather():
         cache["data"] = None
         cache["timestamp"] = 0
         cache["call_count"] = 0
-        save_cache(None, 0, 0)
+        cache["live_mode_warning_shown"] = False if selected[0] == "live" else cache["live_mode_warning_shown"]
+        cache["call_limit_warning_shown"] = False
+        save_cache(None, 0, 0, cache["live_mode_warning_shown"], False)
         print(f"Cache mode updated to {selected[0]}! Data refreshes every {new_duration}s. ⚙️", type_="SUCCESS")
+        if selected[0] == "live" and not cache["live_mode_warning_shown"]:
+            print("Live mode (30s): Frequent calls may hit limits. ⚠️", type_="WARNING")
+            cache["live_mode_warning_shown"] = True
+            save_cache(None, 0, 0, True, cache["call_limit_warning_shown"])
 
     if not get_setting("api_key") or not get_setting("city"):
         print("Set API key and city in GUI. 🌟", type_="INFO")
@@ -191,7 +209,9 @@ def NightyWeather():
                 cache["data"] = None
                 cache["timestamp"] = 0
                 cache["call_count"] = 0
-                save_cache(None, 0, 0)
+                cache["live_mode_warning_shown"] = False
+                cache["call_limit_warning_shown"] = False
+                save_cache(None, 0, 0, False, False)
             url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}&aqi=no"
             for attempt in range(RETRIES):
                 try:
@@ -209,11 +229,15 @@ def NightyWeather():
                     cache["data"] = data
                     cache["timestamp"] = current_time
                     cache["call_count"] = cache.get("call_count", 0) + 1
-                    save_cache(data, current_time, cache["call_count"])
-                    if cache_duration == 30:
+                    live_mode_warning_shown = cache["live_mode_warning_shown"]
+                    call_limit_warning_shown = cache["call_limit_warning_shown"]
+                    if cache_duration == 30 and not live_mode_warning_shown:
                         print("Live mode (30s): Frequent calls may hit limits. ⚠️", type_="WARNING")
-                    if cache["call_count"] > 900000:
+                        live_mode_warning_shown = True
+                    if cache["call_count"] > 900000 and not call_limit_warning_shown:
                         print("Nearing 1M call limit. Adjust cache or upgrade. 📊", type_="WARNING")
+                        call_limit_warning_shown = True
+                    save_cache(data, current_time, cache["call_count"], live_mode_warning_shown, call_limit_warning_shown)
                     return data
                 except requests.exceptions.HTTPError as e:
                     if response and response.status_code == 401:
@@ -282,23 +306,19 @@ def NightyWeather():
                 return f"https://cdn.weatherapi.com/weather/128x128/{time_of_day}/{icon_code}.png"
         return ""
 
-    # Function to update time every 5 seconds
     def update_time_periodically():
         try:
             addDRPCValue("time", get_time)
-            # Schedule the next update
             threading.Timer(5.0, update_time_periodically).start()
         except Exception as e:
             print(f"Error updating time: {str(e)}", type_="ERROR")
 
-    # Register initial DRPC values
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
-    addDRPCValue("time", get_time)  # Initial time value
+    addDRPCValue("time", get_time)
     addDRPCValue("weatherState", get_weather_state)
     addDRPCValue("weathericon", get_weather_icon)
 
-    # Start the periodic time update
     update_time_periodically()
 
     print("NightyWeather running 🌤️", type_="SUCCESS")
