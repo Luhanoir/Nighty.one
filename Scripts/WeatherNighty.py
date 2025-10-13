@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 import os
 import json
 import requests
+import threading
 
 def NightyWeather():
     RETRIES = 3
@@ -281,11 +282,24 @@ def NightyWeather():
                 return f"https://cdn.weatherapi.com/weather/128x128/{time_of_day}/{icon_code}.png"
         return ""
 
+    # Function to update time every 5 seconds
+    def update_time_periodically():
+        try:
+            addDRPCValue("time", get_time)
+            # Schedule the next update
+            threading.Timer(5.0, update_time_periodically).start()
+        except Exception as e:
+            print(f"Error updating time: {str(e)}", type_="ERROR")
+
+    # Register initial DRPC values
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
-    addDRPCValue("time", get_time)
+    addDRPCValue("time", get_time)  # Initial time value
     addDRPCValue("weatherState", get_weather_state)
     addDRPCValue("weathericon", get_weather_icon)
+
+    # Start the periodic time update
+    update_time_periodically()
 
     print("NightyWeather running 🌤️", type_="SUCCESS")
     tab.render()
