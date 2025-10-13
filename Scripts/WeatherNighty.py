@@ -157,7 +157,7 @@ card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI sign
 
 def open_weatherapi():
     webbrowser.open("https://www.weatherapi.com/")
-    print("Opening WeatherAPI website... 🌐", type_="INFO")
+    print("Opening WeatherAPI website... 🌐")
 
 card.create_ui_element(
     UI.Button,
