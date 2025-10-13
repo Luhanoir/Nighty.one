@@ -141,10 +141,10 @@ card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, f
 card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=get_setting("city"))
 card.create_ui_element(UI.Select, label="GMT Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(get_setting("gmt_offset"))], onChange=update_gmt_offset)
 card.create_ui_element(UI.Select, label="Time Format ⏰", full_width=True, mode="single", items=[
-    {"id": "12", "title": "12-hour (e.g., 7:58 AM)"},
-    {"id": "12s", "title": "12-hour with seconds (e.g., 7:58:23 AM)"},
-    {"id": "24", "title": "24-hour (e.g., 19:58)"},
-    {"id": "24s", "title": "24-hour with seconds (e.g., 19:58:23)"}
+    {"id": "12", "title": "12-hour (e.g., 8:14 PM)"},
+    {"id": "12s", "title": "12-hour with seconds (e.g., 8:14:23 PM)"},
+    {"id": "24", "title": "24-hour (e.g., 20:14)"},
+    {"id": "24s", "title": "24-hour with seconds (e.g., 20:14:23)"}
 ], selected_items=[get_setting("time_format")], onChange=update_time_format)
 card.create_ui_element(UI.Select, label="Temperature Unit 🌡️", full_width=True, mode="single", items=[
     {"id": "C", "title": "Celsius (°C)"},
@@ -152,12 +152,16 @@ card.create_ui_element(UI.Select, label="Temperature Unit 🌡️", full_width=T
 ], selected_items=[get_setting("temp_unit")], onChange=update_temp_unit)
 card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
 
-card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature in your chosen unit (e.g., 22°C or 72°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time adjusted for GMT offset (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image in the designated small image section, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather) use only small image url to avoid distortion", full_width=True)
+card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature in your chosen unit (e.g., 22°C or 72°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time adjusted for GMT offset (e.g., 8:14 PM or 20:14:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image in the designated small image section, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather) use only small image url to avoid distortion", full_width=True)
 card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
 
 def open_weatherapi():
-    webbrowser.open("https://www.weatherapi.com/")
-    print("Opening WeatherAPI website... 🌐", type_="INFO")
+    print("Button clicked! Attempting to open WeatherAPI website... 🌐", type_="INFO")
+    try:
+        webbrowser.open("https://www.weatherapi.com/")
+        print("WeatherAPI website opened successfully! 🌐", type_="SUCCESS")
+    except Exception as e:
+        print(f"Failed to open browser: {str(e)}", type_="ERROR")
 
 card.create_ui_element(
     UI.Button,
