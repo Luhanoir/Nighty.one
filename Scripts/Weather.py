@@ -1,11 +1,10 @@
 import webbrowser
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import os
 import json
 import requests
-import threading
-import pytz  # Added for timezone handling
+import pytz  # For timezone handling
 
 def NightyWeather():
     RETRIES = 3
@@ -57,8 +56,8 @@ def NightyWeather():
             }, f, indent=2)
 
     defaults = {
-        "api_key": "", "city": "", "tz_id": "UTC",  # Store tz_id instead of utc_offset
-        "time_format": "12", "temp_unit": "C", "cache_duration": 1800
+        "api_key": "", "city": "", "tz_id": "UTC",
+        "time_format": "12", "temp_unit": "C", "temp_precision": "integer", "cache_duration": 1800
     }
     for key, val in defaults.items():
         if get_setting(key) is None:
@@ -68,16 +67,18 @@ def NightyWeather():
 
     def update_api_key(value):
         update_setting("api_key", value)
+        reset_cache()
+        print("API key updated! Weather data will refresh automatically. 🌤️", type_="SUCCESS")
+
+    def reset_cache():
         cache["data"] = None
         cache["timestamp"] = 0
         cache["call_count"] = 0
         cache["live_mode_warning_shown"] = False
         cache["call_limit_warning_shown"] = False
         save_cache(None, None, 0, False, False)
-        print("API key updated! Weather data will refresh automatically. 🌤️", type_="SUCCESS")
 
     def fetch_city_suggestions(query):
-        """Fetch city suggestions for auto-complete using WeatherAPI's search endpoint."""
         api_key = get_setting("api_key")
         if not api_key or not query:
             return []
@@ -98,7 +99,6 @@ def NightyWeather():
             return []
 
     def update_city(value):
-        """Update city and fetch its timezone."""
         value = value.strip()
         if not value or len(value) > 100:
             print("Invalid city name (e.g., 'Seoul').", type_="ERROR")
@@ -118,12 +118,7 @@ def NightyWeather():
             tz_id = data.get("location", {}).get("tz_id", "UTC")
             update_setting("city", value)
             update_setting("tz_id", tz_id)
-            cache["data"] = None
-            cache["timestamp"] = 0
-            cache["call_count"] = 0
-            cache["live_mode_warning_shown"] = False
-            cache["call_limit_warning_shown"] = False
-            save_cache(None, None, 0, False, False)
+            reset_cache()
             print(f"City updated to {value} (Timezone: {tz_id})! Weather and time will refresh automatically. 🏙️", type_="SUCCESS")
         except Exception as e:
             print(f"City validation error: {str(e)}", type_="ERROR")
@@ -134,24 +129,19 @@ def NightyWeather():
 
     def update_temp_unit(selected):
         update_setting("temp_unit", selected[0])
-        cache["data"] = None
-        cache["timestamp"] = 0
-        cache["call_count"] = 0
-        cache["live_mode_warning_shown"] = False
-        cache["call_limit_warning_shown"] = False
-        save_cache(None, None, 0, False, False)
+        reset_cache()
         print("Temperature unit updated! Weather data will refresh automatically. 🌡️", type_="SUCCESS")
+
+    def update_temp_precision(selected):
+        update_setting("temp_precision", selected[0])
+        reset_cache()
+        print("Temperature precision updated! Weather data will refresh automatically. 🔍", type_="SUCCESS")
 
     def update_cache_mode(selected):
         mode_map = {"live": 30, "5min": 300, "15min": 900, "30min": 1800, "60min": 3600}
         new_duration = mode_map.get(selected[0], 1800)
         update_setting("cache_duration", new_duration)
-        cache["data"] = None
-        cache["timestamp"] = 0
-        cache["call_count"] = 0
-        cache["live_mode_warning_shown"] = False if selected[0] == "live" else cache["live_mode_warning_shown"]
-        cache["call_limit_warning_shown"] = False
-        save_cache(None, None, 0, cache["live_mode_warning_shown"], False)
+        reset_cache()
         print(f"Cache mode updated to {selected[0]}! Data refreshes every {new_duration}s. ⚙️", type_="SUCCESS")
         if selected[0] == "live" and not cache["live_mode_warning_shown"]:
             print("Live mode (30s): Frequent calls may hit limits. ⚠️", type_="WARNING")
@@ -194,7 +184,6 @@ def NightyWeather():
 
     card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=get_setting("api_key"))
     
-    # Auto-complete city input
     card.create_ui_element(
         UI.Input,
         label="City 🏙️",
@@ -203,8 +192,8 @@ def NightyWeather():
         required=True,
         onInput=update_city,
         value=get_setting("city"),
-        autocomplete=True,  # Enable auto-complete
-        onAutocomplete=fetch_city_suggestions  # Fetch suggestions dynamically
+        autocomplete=True,
+        onAutocomplete=fetch_city_suggestions
     )
     
     card.create_ui_element(
@@ -235,6 +224,18 @@ def NightyWeather():
     )
     card.create_ui_element(
         UI.Select,
+        label="Temperature Precision 🔍",
+        full_width=True,
+        mode="single",
+        items=[
+            {"id": "integer", "title": "Integer (e.g., 21°)"},
+            {"id": "decimal", "title": "Decimal (e.g., 21.4°)"}
+        ],
+        selected_items=[get_setting("temp_precision")],
+        onChange=update_temp_precision
+    )
+    card.create_ui_element(
+        UI.Select,
         label="Cache Mode ⚙️",
         full_width=True,
         mode="single",
@@ -245,7 +246,7 @@ def NightyWeather():
 
     card.create_ui_element(
         UI.Text,
-        content="🌤️ {weatherTemp}: Current temperature in your chosen unit (e.g., 22°C or 72°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)",
+        content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 72.4°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)",
         full_width=True
     )
     card.create_ui_element(
@@ -281,12 +282,7 @@ def NightyWeather():
                 return cache["data"]
             if cache["timestamp"] and (current_time - cache["timestamp"]) > 86400:
                 print("Cache expired (24h). Resetting.", type_="INFO")
-                cache["data"] = None
-                cache["timestamp"] = 0
-                cache["call_count"] = 0
-                cache["live_mode_warning_shown"] = False
-                cache["call_limit_warning_shown"] = False
-                save_cache(None, None, 0, False, False)
+                reset_cache()
             url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}&aqi=no"
             for attempt in range(RETRIES):
                 try:
@@ -329,8 +325,16 @@ def NightyWeather():
         if not data or "current" not in data:
             return "N/A"
         temp_unit = get_setting("temp_unit") or "C"
+        temp_precision = get_setting("temp_precision") or "integer"
         temp_key = "temp_f" if temp_unit == "F" else "temp_c"
-        return f"{int(round(data['current'][temp_key]))}°{temp_unit}" if temp_key in data["current"] else "N/A"
+        temp_value = data['current'].get(temp_key)
+        if temp_value is None:
+            return "N/A"
+        if temp_precision == "integer":
+            formatted_temp = f"{int(round(temp_value))}°{temp_unit}"
+        else:
+            formatted_temp = f"{temp_value:.1f}°{temp_unit}"
+        return formatted_temp
 
     def get_city():
         return get_setting("city") or "Unknown"
