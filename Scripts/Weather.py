@@ -377,7 +377,7 @@ def NightyWeather():
             }
             icon_code = code_to_icon.get(code)
             if icon_code:
-                return f"https://cdn.weatherapi.com/weather/256x256/{time_of_day}/{icon_code}.png"
+                return f"https://cdn.weatherapi.com/weather/128x128/{time_of_day}/{icon_code}.png"
         return ""
 
     addDRPCValue("weatherTemp", get_weather_temp)
