@@ -246,7 +246,7 @@ def NightyWeather():
 
     card.create_ui_element(
         UI.Text,
-        content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 72.4°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)\n💡 {wtooltip}: Compact tooltip like '7:58PM 22°C☀️' (≤32 chars, emoji based on weather)",
+        content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 72.4°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)\n💡 {wtooltip}: Compact tooltip like '22°C☀️' (≤32 chars, emoji based on weather)",
         full_width=True
     )
     card.create_ui_element(
@@ -417,10 +417,9 @@ def NightyWeather():
         data = fetch_weather_data()
         if not data:
             return "N/A"
-        time_str = get_time()
         temp_str = get_weather_temp()
         emoji = get_weather_emoji()
-        tooltip = f"{time_str}{temp_str}{emoji}"
+        tooltip = f"{temp_str}{emoji}"
         if len(tooltip) > 32:
             tooltip = tooltip[:29] + "..."
         return tooltip
