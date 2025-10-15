@@ -246,7 +246,7 @@ def NightyWeather():
 
     card.create_ui_element(
         UI.Text,
-        content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 72.4°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)\n💡 {weathertooltip}: Compact tooltip like 'it's 7:58 PM and 22°C in Seoul☀️' (≤32 chars, emoji based on weather)",
+        content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 72.4°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)\n💡 {wtooltip}: Compact tooltip like 'it's 7:58 PM and 22°C in Seoul☀️' (≤32 chars, emoji based on weather)",
         full_width=True
     )
     card.create_ui_element(
@@ -386,7 +386,7 @@ def NightyWeather():
 
     def get_weather_emoji():
         data = fetch_weather_data()
-        if not data or "current" not in data or "condition" not in data["current"]:
+        if not data or "current" not in data or "condition" in data["current"]:
             return "🌤️"
         condition_text = data["current"]["condition"]["text"].lower()
         is_day = data["current"]["is_day"] == 1
@@ -414,7 +414,7 @@ def NightyWeather():
         else:
             return "🌤️"  # Fallback
 
-    def get_weather_tooltip():
+    def get_wtooltip():
         data = fetch_weather_data()
         if not data:
             return "Weather unavailable"
@@ -439,7 +439,7 @@ def NightyWeather():
     addDRPCValue("time", get_time)
     addDRPCValue("weatherState", get_weather_state)
     addDRPCValue("weathericon", get_weather_icon)
-    addDRPCValue("weathertooltip", get_weather_tooltip)
+    addDRPCValue("wtooltip", get_wtooltip)
 
     print("NightyWeather running 🌤️", type_="SUCCESS")
     tab.render()
