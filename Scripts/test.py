@@ -246,7 +246,7 @@ def NightyWeather():
 
     card.create_ui_element(
         UI.Text,
-        content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 72.4°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)\n💡 {wtooltip}: Compact tooltip like 'it's 7:58 PM and 22°C in Seoul☀️' (≤32 chars, emoji based on weather)",
+        content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 72.4°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time for the selected city (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather)\n💡 {wtooltip}: Compact tooltip like '7:58PM 22°C☀️' (≤32 chars, emoji based on weather)",
         full_width=True
     )
     card.create_ui_element(
@@ -386,11 +386,10 @@ def NightyWeather():
 
     def get_weather_emoji():
         data = fetch_weather_data()
-        if not data or "current" not in data or "condition" in data["current"]:
+        if not data or "current" not in data or "condition" not in data["current"]:
             return "🌤️"
         condition_text = data["current"]["condition"]["text"].lower()
         is_day = data["current"]["is_day"] == 1
-        # Keyword-based mapping for flexibility (prioritizes text over code)
         if any(word in condition_text for word in ["clear", "sunny"]):
             return "☀️" if is_day else "🌙"
         elif any(word in condition_text for word in ["partly cloudy", "mostly sunny"]):
@@ -412,26 +411,18 @@ def NightyWeather():
         elif "wind" in condition_text:
             return "🌪️"
         else:
-            return "🌤️"  # Fallback
+            return "🌤️"
 
     def get_wtooltip():
         data = fetch_weather_data()
         if not data:
-            return "Weather unavailable"
+            return "N/A"
         time_str = get_time()
         temp_str = get_weather_temp()
-        city_name = data['location'].get('name', get_city())
         emoji = get_weather_emoji()
-        tooltip = f"it's {time_str} and {temp_str} in {city_name}{emoji}"
-        # Ensure under 32 chars by truncating city if needed
+        tooltip = f"{time_str}{temp_str}{emoji}"
         if len(tooltip) > 32:
-            prefix_len = len(f"it's {time_str} and {temp_str} in ")
-            max_city_len = 32 - prefix_len - len(emoji)
-            if max_city_len < 3:
-                city_name = city_name[:3] + "..."
-            else:
-                city_name = city_name[:max_city_len - 3] + "..."
-            tooltip = f"it's {time_str} and {temp_str} in {city_name}{emoji}"
+            tooltip = tooltip[:29] + "..."
         return tooltip
 
     addDRPCValue("weatherTemp", get_weather_temp)
