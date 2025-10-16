@@ -183,8 +183,8 @@ def NightyWeather():
         {"id": "F", "title": "Fahrenheit (°F)"}
     ], selected_items=[get_setting("temp_unit")], onChange=update_temp_unit)
     card.create_ui_element(UI.Select, label="Temperature Precision 📏", full_width=True, mode="single", items=[
-        {"id": "int", "title": "Integer (e.g., 22°C)"},
-        {"id": "1dec", "title": "One Decimal (e.g., 21.7°C)"}
+        {"id": "int", "title": "Integer (e.g., 22°)"},
+        {"id": "1dec", "title": "Decimal (e.g., 21.7°)"}
     ], selected_items=[get_setting("temp_precision")], onChange=update_temp_precision)
     card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
 
