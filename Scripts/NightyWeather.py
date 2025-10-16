@@ -58,8 +58,8 @@ def NightyWeather():
             }, f, indent=2)
 
     defaults = {
-        "api_key": "", "city": "", "utc_offset": 0.0,  # Changed from gmt_offset
-        "time_format": "12", "temp_unit": "C", "cache_duration": 1800
+        "api_key": "", "city": "", "utc_offset": 0.0,
+        "time_format": "12", "temp_unit": "C", "temp_precision": "int", "cache_duration": 1800
     }
     for key, val in defaults.items():
         if get_setting(key) is None:
@@ -95,7 +95,7 @@ def NightyWeather():
         try:
             offset = float(selected[0])
             if -14 <= offset <= 14:
-                update_setting("utc_offset", offset)  # Changed from gmt_offset
+                update_setting("utc_offset", offset)
                 print("UTC offset updated! Time will refresh automatically. 🌍", type_="SUCCESS")
             else:
                 print("UTC offset must be between -14 and +14.", type_="ERROR")
@@ -108,13 +108,11 @@ def NightyWeather():
 
     def update_temp_unit(selected):
         update_setting("temp_unit", selected[0])
-        cache["data"] = None
-        cache["timestamp"] = 0
-        cache["call_count"] = 0
-        cache["live_mode_warning_shown"] = False
-        cache["call_limit_warning_shown"] = False
-        save_cache(None, None, 0, False, False)
-        print("Temperature unit updated! Weather data will refresh automatically. 🌡️", type_="SUCCESS")
+        print("Temperature unit updated! Display will refresh automatically. 🌡️", type_="SUCCESS")
+
+    def update_temp_precision(selected):
+        update_setting("temp_precision", selected[0])
+        print("Temperature precision updated! Display will refresh automatically. 📐", type_="SUCCESS")
 
     def update_cache_mode(selected):
         mode_map = {"live": 30, "5min": 300, "15min": 900, "30min": 1800, "60min": 3600}
@@ -135,7 +133,6 @@ def NightyWeather():
     if not get_setting("api_key") or not get_setting("city"):
         print("Set API key and city in GUI. 🌟", type_="INFO")
 
-    # Updated UTC offset list (same values, relabeled as UTC)
     utc_offsets = sorted([-12.0, -11.0, -10.0, -9.5, -9.0, -8.0, -7.0, -6.0, -5.0, -4.5, -4.0, -3.5, -3.0, -2.0, -1.0,
                           0.0, 1.0, 2.0, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 5.75, 6.0, 6.5, 7.0, 8.0, 8.5, 9.0, 9.5,
                           10.0, 10.5, 11.0, 12.0, 12.75, 13.0, 14.0])
@@ -174,7 +171,7 @@ def NightyWeather():
 
     card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=get_setting("api_key"))
     card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=get_setting("city"))
-    card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(get_setting("utc_offset"))], onChange=update_utc_offset)  # Changed label
+    card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(get_setting("utc_offset"))], onChange=update_utc_offset)
     card.create_ui_element(UI.Select, label="Time Format ⏰", full_width=True, mode="single", items=[
         {"id": "12", "title": "12-hour (e.g., 7:58 AM)"},
         {"id": "12s", "title": "12-hour with seconds (e.g., 7:58:23 AM)"},
@@ -185,9 +182,13 @@ def NightyWeather():
         {"id": "C", "title": "Celsius (°C)"},
         {"id": "F", "title": "Fahrenheit (°F)"}
     ], selected_items=[get_setting("temp_unit")], onChange=update_temp_unit)
+    card.create_ui_element(UI.Select, label="Temperature Precision 📏", full_width=True, mode="single", items=[
+        {"id": "int", "title": "Integer (e.g., 22°C)"},
+        {"id": "1dec", "title": "One Decimal (e.g., 21.7°C)"}
+    ], selected_items=[get_setting("temp_precision")], onChange=update_temp_precision)
     card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
 
-    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature in your chosen unit (e.g., 22°C or 72°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time adjusted for UTC offset (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image in the designated small image section, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather) use only small image url to avoid distortion", full_width=True)
+    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 71.6°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time adjusted for UTC offset (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image in the designated small image section, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather) use only small image url to avoid distortion", full_width=True)
     card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
 
     def open_weatherapi():
@@ -266,14 +267,23 @@ def NightyWeather():
             return "N/A"
         temp_unit = get_setting("temp_unit") or "C"
         temp_key = "temp_f" if temp_unit == "F" else "temp_c"
-        return f"{int(round(data['current'][temp_key]))}°{temp_unit}" if temp_key in data["current"] else "N/A"
+        temp_precision = get_setting("temp_precision") or "int"
+        raw_temp = data['current'].get(temp_key)
+        if raw_temp is None:
+            return "N/A"
+        if temp_precision == "int":
+            temp = int(round(raw_temp))
+            return f"{temp}°{temp_unit}"
+        else:
+            temp = round(raw_temp, 1)
+            return f"{temp:.1f}°{temp_unit}"
 
     def get_city():
         return get_setting("city") or "Unknown"
 
     def get_time():
         try:
-            utc_offset = float(get_setting("utc_offset") or 0.0)  # Changed from gmt_offset
+            utc_offset = float(get_setting("utc_offset") or 0.0)
             time_format = get_setting("time_format") or "12"
             if not -14 <= utc_offset <= 14:
                 raise ValueError("Invalid UTC offset")
@@ -301,20 +311,11 @@ def NightyWeather():
     def get_weather_icon():
         data = fetch_weather_data()
         if data and "current" in data and "condition" in data["current"]:
-            code = data["current"]["condition"]["code"]
-            is_day = data["current"]["is_day"]
-            time_of_day = "day" if is_day == 1 else "night"
-            code_to_icon = {
-                1000: 113, 1003: 116, 1006: 119, 1009: 122, 1030: 143, 1063: 176, 1066: 179, 1069: 182,
-                1072: 185, 1087: 200, 1114: 227, 1117: 230, 1135: 248, 1147: 260, 1150: 263, 1153: 266,
-                1168: 281, 1171: 284, 1180: 293, 1183: 296, 1186: 299, 1189: 302, 1192: 305, 1195: 308,
-                1198: 311, 1201: 314, 1204: 317, 1207: 320, 1210: 323, 1213: 326, 1216: 329, 1219: 332,
-                1222: 335, 1225: 338, 1237: 350, 1240: 353, 1243: 356, 1246: 359, 1249: 362, 1252: 365,
-                1255: 368, 1258: 371, 1261: 374, 1264: 377, 1273: 386, 1276: 389, 1279: 392, 1282: 395
-            }
-            icon_code = code_to_icon.get(code)
-            if icon_code:
-                return f"https://cdn.weatherapi.com/weather/128x128/{time_of_day}/{icon_code}.png"
+            icon_url = data["current"]["condition"]["icon"]
+            # Prepend https: and upscale to 128x128 for better quality
+            if icon_url:
+                icon_url = "https:" + icon_url.replace("64x64", "128x128")
+                return icon_url
         return ""
 
     addDRPCValue("weatherTemp", get_weather_temp)
