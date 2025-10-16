@@ -39,6 +39,9 @@ def NightyWeather():
                     if not isinstance(timestamp, (int, float)) or timestamp < 0:
                         print("Invalid cache timestamp. Resetting cache.", type_="WARNING")
                         return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
+                    # Ensure consistent keys
+                    cache.setdefault("live_mode_warning_shown", False)
+                    cache.setdefault("call_limit_warning_shown", False)
                     return cache
             except Exception:
                 print("Corrupted cache file. Resetting cache.", type_="ERROR")
