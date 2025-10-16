@@ -14,6 +14,71 @@ def NightyWeather():
     CACHE_PATH = f"{SCRIPT_DATA_DIR}/NightyWeatherCache.json"
     os.makedirs(SCRIPT_DATA_DIR, exist_ok=True)
 
+    # Weather condition code to icon mapping (based on WeatherAPI documentation)
+    def get_weather_icon_url(code, is_day):
+        # Comprehensive mapping based on WeatherAPI condition codes
+        condition_map = {
+            # Clear/Sunny
+            1000: 113,  # Sunny/Clear
+            # Cloudy
+            1003: 116,  # Partly cloudy
+            1006: 119,  # Cloudy
+            1009: 122,  # Overcast
+            # Mist/Fog
+            1030: 143,  # Mist
+            1135: 248,  # Fog
+            1147: 260,  # Freezing fog
+            # Rain
+            1063: 176,  # Patchy rain
+            1150: 263,  # Patchy light drizzle
+            1153: 266,  # Light drizzle
+            1168: 281,  # Freezing drizzle
+            1171: 284,  # Heavy freezing drizzle
+            1180: 293,  # Patchy light rain
+            1183: 296,  # Light rain
+            1186: 299,  # Moderate rain at times
+            1189: 302,  # Moderate rain
+            1192: 305,  # Heavy rain at times
+            1195: 308,  # Heavy rain
+            1198: 311,  # Light freezing rain
+            1201: 314,  # Moderate/heavy freezing rain
+            1240: 353,  # Light rain shower
+            1243: 356,  # Moderate/heavy rain shower
+            1246: 359,  # Torrential rain shower
+            # Snow
+            1066: 179,  # Patchy snow
+            1069: 182,  # Patchy sleet
+            1072: 185,  # Patchy freezing drizzle
+            1114: 227,  # Blowing snow
+            1117: 230,  # Blizzard
+            1204: 317,  # Light sleet
+            1207: 320,  # Moderate/heavy sleet
+            1210: 323,  # Patchy light snow
+            1213: 326,  # Light snow
+            1216: 329,  # Patchy moderate snow
+            1219: 332,  # Moderate snow
+            1222: 335,  # Patchy heavy snow
+            1225: 338,  # Heavy snow
+            1255: 368,  # Light snow showers
+            1258: 371,  # Moderate/heavy snow showers
+            # Sleet
+            1249: 362,  # Light sleet showers
+            1252: 365,  # Moderate/heavy sleet showers
+            # Thunder
+            1087: 200,  # Thundery outbreaks
+            1273: 386,  # Patchy light rain with thunder
+            1276: 389,  # Moderate/heavy rain with thunder
+            1279: 392,  # Patchy light snow with thunder
+            1282: 395,  # Moderate/heavy snow with thunder
+            # Ice
+            1237: 350,  # Ice pellets
+            1261: 374,  # Light showers of ice pellets
+            1264: 377   # Moderate/heavy showers of ice pellets
+        }
+        time_of_day = "day" if is_day == 1 else "night"
+        icon_code = condition_map.get(code, 113)  # Fallback to sunny/clear icon
+        return f"https://cdn.weatherapi.com/weather/128x128/{time_of_day}/{icon_code}.png"
+
     def get_setting(key=None):
         if not os.path.exists(CONFIG_PATH):
             return None if key else {}
@@ -21,40 +86,49 @@ def NightyWeather():
             with open(CONFIG_PATH, 'r', encoding="utf-8") as f:
                 data = json.load(f)
                 return data.get(key) if key else data
-        except Exception:
+        except Exception as e:
+            print(f"Error reading settings: {e}", type_="ERROR")
             return None if key else {}
 
     def update_setting(key, value):
         settings = get_setting() or {}
         settings[key] = value
-        with open(CONFIG_PATH, 'w', encoding="utf-8") as f:
-            json.dump(settings, f, indent=2)
+        try:
+            with open(CONFIG_PATH, 'w', encoding="utf-8") as f:
+                json.dump(settings, f, indent=2)
+        except Exception as e:
+            print(f"Error updating settings: {e}", type_="ERROR")
 
     def load_cache():
         if not os.path.exists(CACHE_PATH):
-            return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False}
+            return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
         try:
             with open(CACHE_PATH, 'r', encoding="utf-8") as f:
                 cache = json.load(f)
                 timestamp = cache.get("timestamp", 0)
                 if not isinstance(timestamp, (int, float)) or timestamp < 0:
                     print("Invalid cache timestamp. Resetting cache.", type_="WARNING")
-                    return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False}
+                    return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
                 return cache
-        except Exception:
-            print("Corrupted cache file. Resetting cache.", type_="ERROR")
-            return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False}
+        except Exception as e:
+            print(f"Corrupted cache file: {e}. Resetting cache.", type_="ERROR")
+            return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
 
-    def save_cache(data, timestamp=None, call_count=0, live_mode_warning_shown=False):
+    def save_cache(data, timestamp=None, call_count=0, live_mode_warning_shown=False, call_limit_warning_shown=False):
         timestamp = timestamp or datetime.now(timezone.utc).timestamp()
-        with open(CACHE_PATH, 'w', encoding="utf-8") as f:
-            json.dump({
-                "data": data,
-                "timestamp": timestamp,
-                "call_count": call_count,
-                "live_mode_warning_shown": live_mode_warning_shown
-            }, f, indent=2)
+        try:
+            with open(CACHE_PATH, 'w', encoding="utf-8") as f:
+                json.dump({
+                    "data": data,
+                    "timestamp": timestamp,
+                    "call_count": call_count,
+                    "live_mode_warning_shown": live_mode_warning_shown,
+                    "call_limit_warning_shown": call_limit_warning_shown
+                }, f, indent=2)
+        except Exception as e:
+            print(f"Error saving cache: {e}", type_="ERROR")
 
+    # Initialize default settings
     defaults = {
         "api_key": "", "city": "", "tz_id": "UTC",
         "time_format": "12", "temp_unit": "C", "temp_precision": "integer", "cache_duration": 1800
@@ -66,11 +140,7 @@ def NightyWeather():
     cache = load_cache()
 
     def reset_cache():
-        cache["data"] = None
-        cache["timestamp"] = 0
-        cache["call_count"] = 0
-        cache["live_mode_warning_shown"] = False
-        save_cache(None)
+        save_cache(None, None, 0, False, False)
 
     def update_api_key(value):
         update_setting("api_key", value)
@@ -78,18 +148,21 @@ def NightyWeather():
         print("API key updated! Weather data will refresh automatically. 🌤️", type_="SUCCESS")
 
     def fetch_city_suggestions(query):
-        if not query or not get_setting("api_key"):
+        api_key = get_setting("api_key")
+        if not api_key or not query:
             return []
         try:
-            url = f"http://api.weatherapi.com/v1/search.json?key={get_setting('api_key')}&q={query}"
+            url = f"http://api.weatherapi.com/v1/search.json?key={api_key}&q={query}"
             response = requests.get(url, timeout=3)
             response.raise_for_status()
             return [
-                {"id": f"{item['name']}, {item['region']}, {item['country']}", "title": f"{item['name']}, {item['region']}, {item['country']}"}
-                for item in response.json()
+                {
+                    "id": f"{item['name']}, {item['region']}, {item['country']}",
+                    "title": f"{item['name']}, {item['region']}, {item['country']}"
+                } for item in response.json()
             ]
         except Exception as e:
-            print(f"City suggestion error: {str(e)}", type_="ERROR")
+            print(f"City suggestion error: {e}", type_="ERROR")
             return []
 
     def update_city(value):
@@ -97,23 +170,25 @@ def NightyWeather():
         if not value or len(value) > 100:
             print("Invalid city name (e.g., 'Seoul').", type_="ERROR")
             return
-        if not get_setting("api_key"):
+        api_key = get_setting("api_key")
+        if not api_key:
             print("API key required to validate city.", type_="ERROR")
             return
         try:
-            url = f"http://api.weatherapi.com/v1/current.json?key={get_setting('api_key')}&q={value}&aqi=no"
+            url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={value}&aqi=no"
             response = requests.get(url, timeout=3)
             response.raise_for_status()
             data = response.json()
             if "error" in data:
                 print(f"WeatherAPI error: {data['error']['message']}", type_="ERROR")
                 return
+            tz_id = data.get("location", {}).get("tz_id", "UTC")
             update_setting("city", value)
-            update_setting("tz_id", data.get("location", {}).get("tz_id", "UTC"))
+            update_setting("tz_id", tz_id)
             reset_cache()
-            print(f"City updated to {value}! Weather and time will refresh automatically. 🏙️", type_="SUCCESS")
+            print(f"City updated to {value} (Timezone: {tz_id})! Weather and time will refresh automatically. 🏙️", type_="SUCCESS")
         except Exception as e:
-            print(f"City validation error: {str(e)}", type_="ERROR")
+            print(f"City validation error: {e}", type_="ERROR")
 
     def update_time_format(selected):
         update_setting("time_format", selected[0])
@@ -138,21 +213,22 @@ def NightyWeather():
         if selected[0] == "live" and not cache["live_mode_warning_shown"]:
             print("Live mode (30s): Frequent calls may hit limits. ⚠️", type_="WARNING")
             cache["live_mode_warning_shown"] = True
-            save_cache(None)
+            save_cache(cache["data"], None, cache["call_count"], True, cache["call_limit_warning_shown"])
 
     if not get_setting("api_key") or not get_setting("city"):
         print("Set API key and city in GUI. 🌟", type_="INFO")
 
     cache_modes = [
-        {"id": "live", "title": "Live (30s)"},
-        {"id": "5min", "title": "Every 5 Min"},
-        {"id": "15min", "title": "Every 15 Min"},
-        {"id": "30min", "title": "Every 30 Min"},
-        {"id": "60min", "title": "Every 60 Min"}
+        {"id": "live", "title": "Live (30s, may hit limits) ⚠️"},
+        {"id": "5min", "title": "Every 5 Min 🕐"},
+        {"id": "15min", "title": "Every 15 Min ⏰"},
+        {"id": "30min", "title": "Every 30 Min ☕"},
+        {"id": "60min", "title": "Every 60 Min 🌤️"}
     ]
     mode_reverse = {30: "live", 300: "5min", 900: "15min", 1800: "30min", 3600: "60min"}
     selected_mode = mode_reverse.get(get_setting("cache_duration"), "30min")
 
+    # UI Setup
     tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
     container = tab.create_container(type="rows")
     card = container.create_card(height="full", width="full", gap=3)
@@ -172,7 +248,7 @@ def NightyWeather():
             shadow=True
         )
     except Exception as e:
-        print(f"Failed to load image: {str(e)}", type_="ERROR")
+        print(f"Failed to load image: {e}", type_="ERROR")
 
     card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=get_setting("api_key"))
     card.create_ui_element(
@@ -235,7 +311,7 @@ def NightyWeather():
     )
     card.create_ui_element(
         UI.Text,
-        content="🌤️ {weatherTemp}: Current temperature\n🏙️ {city}: Selected city\n🕐 {time}: Local time\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Weather icon",
+        content="🌤️ {weatherTemp}: Current temperature\n🏙️ {city}: Selected city\n🕐 {time}: Local time\n☁️ {weatherState}: Current weather\n🖼️ {weathericon}: Weather icon",
         full_width=True
     )
     card.create_ui_element(
@@ -243,11 +319,6 @@ def NightyWeather():
         content="ℹ️ Wait 30min after WeatherAPI signup for key approval.",
         full_width=True
     )
-
-    def open_weatherapi():
-        webbrowser.open("https://www.weatherapi.com/")
-        print("Opening WeatherAPI website... 🌐", type_="INFO")
-
     card.create_ui_element(
         UI.Button,
         label="Visit WeatherAPI 🌐",
@@ -255,14 +326,13 @@ def NightyWeather():
         size="md",
         color="default",
         full_width=True,
-        onClick=open_weatherapi
+        onClick=lambda: webbrowser.open("https://www.weatherapi.com/") or print("Opening WeatherAPI website... 🌐", type_="INFO")
     )
 
     def fetch_weather_data():
         api_key = get_setting("api_key")
         city = get_setting("city")
         if not api_key or not city:
-            print("Missing API key or city.", type_="ERROR")
             return None
         current_time = datetime.now(timezone.utc).timestamp()
         cache_duration = get_setting("cache_duration") or 1800
@@ -272,6 +342,7 @@ def NightyWeather():
         if cache["timestamp"] and (current_time - cache["timestamp"]) > 86400:
             print("Cache expired (24h). Resetting.", type_="INFO")
             reset_cache()
+            cache = load_cache()
         url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}&aqi=no"
         for attempt in range(RETRIES):
             try:
@@ -286,24 +357,24 @@ def NightyWeather():
                 if "error" in data:
                     print(f"WeatherAPI error: {data['error']['message']}", type_="ERROR")
                     return cache["data"] if cache["data"] else None
-                cache["data"] = data
-                cache["timestamp"] = current_time
-                cache["call_count"] = cache.get("call_count", 0) + 1
+                cache["call_count"] += 1
                 if cache_duration == 30 and not cache["live_mode_warning_shown"]:
                     print("Live mode (30s): Frequent calls may hit limits. ⚠️", type_="WARNING")
                     cache["live_mode_warning_shown"] = True
-                save_cache(data, current_time, cache["call_count"], cache["live_mode_warning_shown"])
+                if cache["call_count"] > 900000 and not cache["call_limit_warning_shown"]:
+                    print("Nearing 1M call limit. Adjust cache or upgrade. 📊", type_="WARNING")
+                    cache["call_limit_warning_shown"] = True
+                save_cache(data, None, cache["call_count"], cache["live_mode_warning_shown"], cache["call_limit_warning_shown"])
                 return data
             except requests.exceptions.HTTPError as e:
                 if response.status_code == 401:
                     print("Invalid API key.", type_="ERROR")
                     return cache["data"] if cache["data"] else None
-                raise
+                print(f"HTTP error: {e}", type_="ERROR")
             except Exception as e:
-                print(f"Fetch error: {str(e)}", type_="ERROR")
-                if attempt == RETRIES - 1:
-                    return cache["data"] if cache["data"] else None
-        return None
+                print(f"Fetch error: {e}", type_="ERROR")
+        print("Fetch failed after retries. Using cache if available.", type_="ERROR")
+        return cache["data"] if cache["data"] else None
 
     def get_weather_temp():
         data = fetch_weather_data()
@@ -312,7 +383,7 @@ def NightyWeather():
         temp_unit = get_setting("temp_unit") or "C"
         temp_precision = get_setting("temp_precision") or "integer"
         temp_key = "temp_f" if temp_unit == "F" else "temp_c"
-        temp_value = data["current"].get(temp_key)
+        temp_value = data['current'].get(temp_key)
         if temp_value is None:
             return "N/A"
         return f"{int(round(temp_value))}°{temp_unit}" if temp_precision == "integer" else f"{temp_value:.1f}°{temp_unit}"
@@ -322,8 +393,9 @@ def NightyWeather():
 
     def get_time():
         try:
-            tz = pytz.timezone(get_setting("tz_id") or "UTC")
+            tz_id = get_setting("tz_id") or "UTC"
             time_format = get_setting("time_format") or "12"
+            tz = pytz.timezone(tz_id)
             local_time = datetime.now(timezone.utc).astimezone(tz)
             fmt = {
                 "12": "%I:%M %p",
@@ -333,7 +405,7 @@ def NightyWeather():
             }.get(time_format, "%I:%M %p")
             return local_time.strftime(fmt).lstrip("0")
         except Exception as e:
-            print(f"Time error: {str(e)}", type_="ERROR")
+            print(f"Time error: {e}", type_="ERROR")
             return datetime.now(timezone.utc).strftime("%I:%M %p").lstrip("0")
 
     def get_weather_state():
@@ -342,30 +414,11 @@ def NightyWeather():
 
     def get_weather_icon():
         data = fetch_weather_data()
-        if not data or "current" not in data or "condition" not in data["current"]:
-            print("No weather data or condition available for icon.", type_="ERROR")
-            return ""
-        icon_path = data["current"]["condition"].get("icon")
-        if not icon_path:
-            print("No icon path provided by WeatherAPI.", type_="ERROR")
-            return ""
-        # Ensure the icon path starts with the correct base URL and is absolute
-        if icon_path.startswith("//"):
-            icon_url = f"https:{icon_path}"
-        elif icon_path.startswith("/"):
-            icon_url = f"https://cdn.weatherapi.com{icon_path}"
-        else:
-            icon_url = f"https://cdn.weatherapi.com/{icon_path}"
-        # Verify the icon URL is reachable
-        try:
-            response = requests.head(icon_url, timeout=3)
-            if response.status_code != 200:
-                print(f"Invalid icon URL: {icon_url} (Status: {response.status_code})", type_="ERROR")
-                return ""
-            return icon_url
-        except Exception as e:
-            print(f"Error validating icon URL {icon_url}: {str(e)}", type_="ERROR")
-            return ""
+        if data and "current" in data and "condition" in data["current"]:
+            code = data["current"]["condition"]["code"]
+            is_day = data["current"]["is_day"]
+            return get_weather_icon_url(code, is_day)
+        return "https://cdn.weatherapi.com/weather/128x128/day/113.png"  # Default to sunny icon
 
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
