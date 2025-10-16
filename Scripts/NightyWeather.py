@@ -13,24 +13,26 @@ def NightyWeather():
     This script provides a weather and time display widget for Nighty.one.
     It fetches real-time weather data from WeatherAPI.com and displays local time
     with configurable settings like city, UTC offset, temperature unit, and cache duration.
-    
+
     Dependencies:
-    - Assumes Nighty.one environment provides: getScriptsPath(), addDRPCValue(), Tab, Container, Card, UI.*
-    - Uses WeatherAPI.com for data (free tier: 1M calls/month).
-    
-    Improvements in this version:
-    - Added comments and docstrings for better maintainability.
-    - Refactored cache reset logic into a single function.
-    - Added API key validation (32 alphanumeric characters).
-    - Increased API request timeout to 5 seconds.
-    - Added estimation of monthly API calls with warnings for high-usage modes.
-    - Enhanced error handling and user feedback.
-    - Fallback for showcase image if primary URL fails.
+    - Nighty.one environment: getScriptsPath(), addDRPCValue(), Tab, Container, Card, UI.*
+    - WeatherAPI.com (free tier: 1M calls/month).
+
+    Features:
+    - Fetches and caches weather data with configurable refresh intervals.
+    - Displays local time with customizable formats and UTC offsets.
+    - Validates API key and city inputs.
+    - Includes fallback image for UI reliability.
+    - Estimates API call usage to avoid exceeding limits.
     """
     RETRIES = 3  # Number of retry attempts for API calls
     PRIMARY_IMAGE_URL = "https://i.imgur.com/m0xu9yk.gif"
-    FALLBACK_IMAGE_URL = "https://via.placeholder.com/400x200?text=Weather+Showcase"  # Fallback if primary fails
-    SCRIPT_DATA_DIR = f"{getScriptsPath()}/scriptData"
+    FALLBACK_IMAGE_URL = "https://via.placeholder.com/400x200?text=Weather+Showcase"
+    try:
+        SCRIPT_DATA_DIR = f"{getScriptsPath()}/scriptData"
+    except NameError:
+        print("getScriptsPath() not available. Using default directory.", type_="ERROR")
+        SCRIPT_DATA_DIR = os.path.join(os.path.expanduser("~"), "NightyWeatherData")
     CONFIG_PATH = f"{SCRIPT_DATA_DIR}/NightyWeather.json"
     CACHE_PATH = f"{SCRIPT_DATA_DIR}/NightyWeatherCache.json"
     os.makedirs(SCRIPT_DATA_DIR, exist_ok=True)
@@ -92,7 +94,7 @@ def NightyWeather():
             cache["call_limit_warning_shown"] = False
         save_cache(None, None, 0, cache["live_mode_warning_shown"], cache["call_limit_warning_shown"])
 
-    # Default settings
+    # Initialize default settings
     defaults = {
         "api_key": "", "city": "", "utc_offset": 0.0,
         "time_format": "12", "temp_unit": "C", "temp_precision": "int", "cache_duration": 1800
@@ -101,10 +103,9 @@ def NightyWeather():
         if get_setting(key) is None:
             update_setting(key, val)
 
-    cache = load_cache()
-
     def update_api_key(value):
         """Update API key with validation."""
+        cache = load_cache()  # Ensure cache is loaded
         value = value.strip()
         if len(value) == 32 and value.isalnum():
             update_setting("api_key", value)
@@ -115,6 +116,7 @@ def NightyWeather():
 
     def update_city(value):
         """Update city with validation."""
+        cache = load_cache()  # Ensure cache is loaded
         value = value.strip()
         if value and len(value) <= 100:
             update_setting("city", value)
@@ -152,29 +154,28 @@ def NightyWeather():
 
     def update_cache_mode(selected):
         """Update cache mode and show warnings including estimated calls."""
+        cache = load_cache()  # Ensure cache is loaded
         mode_map = {"live": 30, "5min": 300, "15min": 900, "30min": 1800, "60min": 3600}
         new_duration = mode_map.get(selected[0], 1800)
         update_setting("cache_duration", new_duration)
-        reset_cache(full_reset=False)  # Preserve warnings unless mode changes require reset
+        reset_cache(full_reset=False)
         print(f"Cache mode updated to {selected[0]}! Data refreshes every {new_duration}s. ⚙️", type_="SUCCESS")
         
-        # Estimate monthly calls (assuming 30 days, 86400 seconds/day)
+        # Estimate monthly API calls
         if new_duration > 0:
             daily_calls = 86400 / new_duration
             monthly_calls = daily_calls * 30
-            if monthly_calls > 1000000:  # WeatherAPI free limit
+            if monthly_calls > 1000000:
                 print(f"Warning: Estimated {int(monthly_calls):,} calls/month may exceed free limit (1M). Consider upgrading. 📊", type_="WARNING")
         
-        cache = load_cache()
         if selected[0] == "live" and not cache["live_mode_warning_shown"]:
             print("Live mode (30s): Frequent calls may hit limits. ⚠️", type_="WARNING")
             cache["live_mode_warning_shown"] = True
-            save_cache(None, None, 0, True, cache["call_limit_warning_shown"])
+            save_cache(cache["data"], None, cache["call_count"], True, cache["call_limit_warning_shown"])
 
     if not get_setting("api_key") or not get_setting("city"):
         print("Set API key and city in GUI. 🌟", type_="INFO")
 
-    # UTC offsets list (kept comprehensive for accuracy)
     utc_offsets = sorted([-12.0, -11.0, -10.0, -9.5, -9.0, -8.0, -7.0, -6.0, -5.0, -4.5, -4.0, -3.5, -3.0, -2.0, -1.0,
                           0.0, 1.0, 2.0, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 5.75, 6.0, 6.5, 7.0, 8.0, 8.5, 9.0, 9.5,
                           10.0, 10.5, 11.0, 12.0, 12.75, 13.0, 14.0])
@@ -190,10 +191,14 @@ def NightyWeather():
     mode_reverse = {30: "live", 300: "5min", 900: "15min", 1800: "30min", 3600: "60min"}
     selected_mode = mode_reverse.get(get_setting("cache_duration"), "30min")
 
-    # Create UI in Nighty.one
-    tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
-    container = tab.create_container(type="rows")
-    card = container.create_card(height="full", width="full", gap=3)
+    # Create Nighty.one UI
+    try:
+        tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
+        container = tab.create_container(type="rows")
+        card = container.create_card(height="full", width="full", gap=3)
+    except NameError:
+        print("Nighty.one UI components (Tab, Container, Card) not available.", type_="ERROR")
+        return
 
     # Load image with fallback
     image_url = PRIMARY_IMAGE_URL
@@ -241,8 +246,7 @@ def NightyWeather():
     ], selected_items=[get_setting("temp_precision")], onChange=update_temp_precision)
     card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
 
-    # Placeholder explanations
-    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 71.6°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time adjusted for UTC offset (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image in the designated small image section, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather) use only small image url to avoid distortion", full_width=True)
+    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature\n🏙️ {city}: Selected city\n🕐 {time}: Local time\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Weather icon", full_width=True)
     card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
 
     def open_weatherapi():
@@ -262,14 +266,15 @@ def NightyWeather():
 
     def fetch_weather_data():
         """Fetch weather data from API with caching and retries."""
+        cache = load_cache()  # Ensure cache is loaded
         try:
             api_key = get_setting("api_key")
             city = get_setting("city")
             if not api_key or not city:
-                return None
+                print("API key or city not set.", type_="ERROR")
+                return cache["data"] if cache["data"] else None
             current_time = datetime.now(timezone.utc).timestamp()
             cache_duration = get_setting("cache_duration") or 1800
-            cache = load_cache()
             if cache_duration > 0 and cache["data"] and (current_time - cache["timestamp"]) < cache_duration:
                 return cache["data"]
             if cache["timestamp"] and (current_time - cache["timestamp"]) > 86400:
@@ -278,7 +283,7 @@ def NightyWeather():
             url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}&aqi=no"
             for attempt in range(RETRIES):
                 try:
-                    response = requests.get(url, timeout=5)  # Increased timeout
+                    response = requests.get(url, timeout=5)
                     if response.status_code == 429:
                         wait_time = 2 ** attempt
                         print(f"Rate limit hit. Retrying in {wait_time}s...", type_="WARNING")
@@ -290,17 +295,15 @@ def NightyWeather():
                         print(f"WeatherAPI error: {data['error']['message']}", type_="ERROR")
                         return cache["data"] if cache["data"] else None
                     cache["data"] = data
-                    cache["timestamp"] = datetime.now(timezone.utc).timestamp()
+                    cache["timestamp"] = current_time
                     cache["call_count"] = cache.get("call_count", 0) + 1
-                    live_mode_warning_shown = cache["live_mode_warning_shown"]
-                    call_limit_warning_shown = cache["call_limit_warning_shown"]
-                    if cache_duration == 30 and not live_mode_warning_shown:
+                    if cache_duration == 30 and not cache["live_mode_warning_shown"]:
                         print("Live mode (30s): Frequent calls may hit limits. ⚠️", type_="WARNING")
-                        live_mode_warning_shown = True
-                    if cache["call_count"] > 900000 and not call_limit_warning_shown:
+                        cache["live_mode_warning_shown"] = True
+                    if cache["call_count"] > 900000 and not cache["call_limit_warning_shown"]:
                         print("Nearing 1M call limit. Adjust cache or upgrade. 📊", type_="WARNING")
-                        call_limit_warning_shown = True
-                    save_cache(data, None, cache["call_count"], live_mode_warning_shown, call_limit_warning_shown)
+                        cache["call_limit_warning_shown"] = True
+                    save_cache(data, current_time, cache["call_count"], cache["live_mode_warning_shown"], cache["call_limit_warning_shown"])
                     return data
                 except requests.exceptions.HTTPError as e:
                     if response and response.status_code == 401:
@@ -370,16 +373,21 @@ def NightyWeather():
         if data and "current" in data and "condition" in data["current"]:
             icon_url = data["current"]["condition"]["icon"]
             if icon_url:
-                icon_url = "https:" + icon_url.replace("64x64", "128x128")
-                return icon_url
+                return "https:" + icon_url.replace("64x64", "128x128")
         return ""
 
-    # Add dynamic values for Nighty.one placeholders
-    addDRPCValue("weatherTemp", get_weather_temp)
-    addDRPCValue("city", get_city)
-    addDRPCValue("time", get_time)
-    addDRPCValue("weatherState", get_weather_state)
-    addDRPCValue("weathericon", get_weather_icon)
+    # Register dynamic values
+    try:
+        addDRPCValue("weatherTemp", get_weather_temp)
+        addDRPCValue("city", get_city)
+        addDRPCValue("time", get_time)
+        addDRPCValue("weatherState", get_weather_state)
+        addDRPCValue("weathericon", get_weather_icon)
+    except NameError:
+        print("addDRPCValue not available. Dynamic values not registered.", type_="ERROR")
 
     print("NightyWeather running 🌤️", type_="SUCCESS")
-    tab.render()
+    try:
+        tab.render()
+    except NameError:
+        print("Tab rendering failed. Ensure Nighty.one environment is active.", type_="ERROR")
