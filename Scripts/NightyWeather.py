@@ -39,8 +39,6 @@ def NightyWeather():
                     if not isinstance(timestamp, (int, float)) or timestamp < 0:
                         print("Invalid cache timestamp. Resetting cache.", type_="WARNING")
                         return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
-                    cache.setdefault("live_mode_warning_shown", False)
-                    cache.setdefault("call_limit_warning_shown", False)
                     return cache
             except Exception:
                 print("Corrupted cache file. Resetting cache.", type_="ERROR")
@@ -370,9 +368,13 @@ def NightyWeather():
     def get_weather_icon():
         data = fetch_weather_data()
         if data and "current" in data and "condition" in data["current"]:
-            icon_path = data["current"]["condition"]["icon"]
-            return f"https:{icon_path}"
-        return ""
+            icon_url = data["current"]["condition"]["icon"]
+            if icon_url:
+                # Upgrade to 128x128 size and ensure full HTTPS URL
+                upgraded_url = icon_url.replace("64x64", "128x128").replace("//", "https://")
+                return upgraded_url
+        # Default to sunny day icon if no valid icon
+        return "https://cdn.weatherapi.com/weather/128x128/day/113.png"
 
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
