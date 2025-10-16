@@ -16,9 +16,9 @@ def NightyWeather():
 
     def get_weather_icon_url(data):
         if data and "current" in data and "condition" in data["current"]:
-            icon_path = data["current"]["condition"].get("icon", "//cdn.weatherapi.com/weather/128x128/day/113.png")
-            return f"https:{icon_path}"  # Prepend https: to relative URL
-        return "https://cdn.weatherapi.com/weather/128x128/day/113.png"  # Default to sunny icon
+            icon_path = data["current"]["condition"].get("icon")
+            return f"https:{icon_path}" if icon_path else ""
+        return ""
 
     def get_setting(key=None):
         if not os.path.exists(CONFIG_PATH):
