@@ -14,70 +14,11 @@ def NightyWeather():
     CACHE_PATH = f"{SCRIPT_DATA_DIR}/NightyWeatherCache.json"
     os.makedirs(SCRIPT_DATA_DIR, exist_ok=True)
 
-    # Weather condition code to icon mapping (based on WeatherAPI documentation)
-    def get_weather_icon_url(code, is_day):
-        # Comprehensive mapping based on WeatherAPI condition codes
-        condition_map = {
-            # Clear/Sunny
-            1000: 113,  # Sunny/Clear
-            # Cloudy
-            1003: 116,  # Partly cloudy
-            1006: 119,  # Cloudy
-            1009: 122,  # Overcast
-            # Mist/Fog
-            1030: 143,  # Mist
-            1135: 248,  # Fog
-            1147: 260,  # Freezing fog
-            # Rain
-            1063: 176,  # Patchy rain
-            1150: 263,  # Patchy light drizzle
-            1153: 266,  # Light drizzle
-            1168: 281,  # Freezing drizzle
-            1171: 284,  # Heavy freezing drizzle
-            1180: 293,  # Patchy light rain
-            1183: 296,  # Light rain
-            1186: 299,  # Moderate rain at times
-            1189: 302,  # Moderate rain
-            1192: 305,  # Heavy rain at times
-            1195: 308,  # Heavy rain
-            1198: 311,  # Light freezing rain
-            1201: 314,  # Moderate/heavy freezing rain
-            1240: 353,  # Light rain shower
-            1243: 356,  # Moderate/heavy rain shower
-            1246: 359,  # Torrential rain shower
-            # Snow
-            1066: 179,  # Patchy snow
-            1069: 182,  # Patchy sleet
-            1072: 185,  # Patchy freezing drizzle
-            1114: 227,  # Blowing snow
-            1117: 230,  # Blizzard
-            1204: 317,  # Light sleet
-            1207: 320,  # Moderate/heavy sleet
-            1210: 323,  # Patchy light snow
-            1213: 326,  # Light snow
-            1216: 329,  # Patchy moderate snow
-            1219: 332,  # Moderate snow
-            1222: 335,  # Patchy heavy snow
-            1225: 338,  # Heavy snow
-            1255: 368,  # Light snow showers
-            1258: 371,  # Moderate/heavy snow showers
-            # Sleet
-            1249: 362,  # Light sleet showers
-            1252: 365,  # Moderate/heavy sleet showers
-            # Thunder
-            1087: 200,  # Thundery outbreaks
-            1273: 386,  # Patchy light rain with thunder
-            1276: 389,  # Moderate/heavy rain with thunder
-            1279: 392,  # Patchy light snow with thunder
-            1282: 395,  # Moderate/heavy snow with thunder
-            # Ice
-            1237: 350,  # Ice pellets
-            1261: 374,  # Light showers of ice pellets
-            1264: 377   # Moderate/heavy showers of ice pellets
-        }
-        time_of_day = "day" if is_day == 1 else "night"
-        icon_code = condition_map.get(code, 113)  # Fallback to sunny/clear icon
-        return f"https://cdn.weatherapi.com/weather/128x128/{time_of_day}/{icon_code}.png"
+    def get_weather_icon_url(data):
+        if data and "current" in data and "condition" in data["current"]:
+            icon_path = data["current"]["condition"].get("icon", "//cdn.weatherapi.com/weather/128x128/day/113.png")
+            return f"https:{icon_path}"  # Prepend https: to relative URL
+        return "https://cdn.weatherapi.com/weather/128x128/day/113.png"  # Default to sunny icon
 
     def get_setting(key=None):
         if not os.path.exists(CONFIG_PATH):
@@ -128,7 +69,6 @@ def NightyWeather():
         except Exception as e:
             print(f"Error saving cache: {e}", type_="ERROR")
 
-    # Initialize default settings
     defaults = {
         "api_key": "", "city": "", "tz_id": "UTC",
         "time_format": "12", "temp_unit": "C", "temp_precision": "integer", "cache_duration": 1800
@@ -228,7 +168,6 @@ def NightyWeather():
     mode_reverse = {30: "live", 300: "5min", 900: "15min", 1800: "30min", 3600: "60min"}
     selected_mode = mode_reverse.get(get_setting("cache_duration"), "30min")
 
-    # UI Setup
     tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
     container = tab.create_container(type="rows")
     card = container.create_card(height="full", width="full", gap=3)
@@ -414,11 +353,7 @@ def NightyWeather():
 
     def get_weather_icon():
         data = fetch_weather_data()
-        if data and "current" in data and "condition" in data["current"]:
-            code = data["current"]["condition"]["code"]
-            is_day = data["current"]["is_day"]
-            return get_weather_icon_url(code, is_day)
-        return "https://cdn.weatherapi.com/weather/128x128/day/113.png"  # Default to sunny icon
+        return get_weather_icon_url(data)
 
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
