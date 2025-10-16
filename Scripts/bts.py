@@ -262,6 +262,7 @@ def NightyWeather():
         api_key = get_setting("api_key")
         city = get_setting("city")
         if not api_key or not city:
+            print("Missing API key or city.", type_="ERROR")
             return None
         current_time = datetime.now(timezone.utc).timestamp()
         cache_duration = get_setting("cache_duration") or 1800
@@ -341,10 +342,30 @@ def NightyWeather():
 
     def get_weather_icon():
         data = fetch_weather_data()
-        if data and "current" in data and "condition" in data["current"]:
-            icon_path = data["current"]["condition"]["icon"]
-            return f"https://cdn.weatherapi.com{icon_path}"
-        return ""
+        if not data or "current" not in data or "condition" not in data["current"]:
+            print("No weather data or condition available for icon.", type_="ERROR")
+            return ""
+        icon_path = data["current"]["condition"].get("icon")
+        if not icon_path:
+            print("No icon path provided by WeatherAPI.", type_="ERROR")
+            return ""
+        # Ensure the icon path starts with the correct base URL and is absolute
+        if icon_path.startswith("//"):
+            icon_url = f"https:{icon_path}"
+        elif icon_path.startswith("/"):
+            icon_url = f"https://cdn.weatherapi.com{icon_path}"
+        else:
+            icon_url = f"https://cdn.weatherapi.com/{icon_path}"
+        # Verify the icon URL is reachable
+        try:
+            response = requests.head(icon_url, timeout=3)
+            if response.status_code != 200:
+                print(f"Invalid icon URL: {icon_url} (Status: {response.status_code})", type_="ERROR")
+                return ""
+            return icon_url
+        except Exception as e:
+            print(f"Error validating icon URL {icon_url}: {str(e)}", type_="ERROR")
+            return ""
 
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
