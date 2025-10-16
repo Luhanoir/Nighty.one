@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 import os
+from typing import List, Dict  # Added for <3.9 compatibility
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -107,7 +108,7 @@ class WeatherConfig:
         mode_map = {30: "live", 300: "5min", 900: "15min", 1800: "30min", 3600: "60min"}
         return mode_map.get(duration, "custom")
 
-def fetch_city_suggestions(config: WeatherConfig, query: str) -> list[dict]:
+def fetch_city_suggestions(config: WeatherConfig, query: str) -> List[Dict]:
     api_key = config.get("api_key")
     if not api_key or not query:
         return []
