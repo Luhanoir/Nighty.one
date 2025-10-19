@@ -36,6 +36,7 @@ def NightyWeather():
                 with open(CACHE_PATH, 'r', encoding="utf-8") as f:
                     cache = json.load(f)
                     timestamp = cache.get("timestamp", 0)
+                    # Validate UTC timestamp
                     if not isinstance(timestamp, (int, float)) or timestamp < 0:
                         print("Invalid cache timestamp. Resetting cache.", type_="WARNING")
                         return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
@@ -45,6 +46,7 @@ def NightyWeather():
         return {"data": None, "timestamp": 0, "call_count": 0, "live_mode_warning_shown": False, "call_limit_warning_shown": False}
 
     def save_cache(data, timestamp=None, call_count=0, live_mode_warning_shown=False, call_limit_warning_shown=False):
+        # Always use UTC timestamp
         timestamp = timestamp or datetime.now(timezone.utc).timestamp()
         with open(CACHE_PATH, 'w', encoding="utf-8") as f:
             json.dump({
@@ -55,13 +57,9 @@ def NightyWeather():
                 "call_limit_warning_shown": call_limit_warning_shown
             }, f, indent=2)
 
-    # Initialize defaults if missing
     defaults = {
         "api_key": "", "city": "", "utc_offset": 0.0,
-        "time_format": "12", "temp_unit": "C", "temp_precision": "int", "cache_duration": 1800,
-        # New options defaults
-        "weather_text_case": "title", "icon_size": "medium", "show_humidity": False, "show_wind": False,
-        "date_format": "short"
+        "time_format": "12", "temp_unit": "C", "temp_precision": "int", "cache_duration": 1800
     }
     for key, val in defaults.items():
         if get_setting(key) is None:
@@ -132,38 +130,14 @@ def NightyWeather():
             cache["live_mode_warning_shown"] = True
             save_cache(None, None, 0, True, cache["call_limit_warning_shown"])
 
-    # New option handlers
-    def update_weather_text_case(selected):
-        update_setting("weather_text_case", selected[0])
-        print("Weather text case updated! Descriptions will adjust automatically. 📝", type_="SUCCESS")
-
-    def update_icon_size(selected):
-        update_setting("icon_size", selected[0])
-        print("Icon size updated! Weather icons will resize in display. 🖼️", type_="SUCCESS")
-
-    def update_show_humidity(checked):
-        update_setting("show_humidity", checked)
-        print(f"Humidity display {'enabled' if checked else 'disabled'}! 💧", type_="SUCCESS")
-
-    def update_show_wind(checked):
-        update_setting("show_wind", checked)
-        print(f"Wind display {'enabled' if checked else 'disabled'}! 💨", type_="SUCCESS")
-
-    def update_date_format(selected):
-        update_setting("date_format", selected[0])
-        print("Date format updated! Date display will refresh automatically. 📅", type_="SUCCESS")
-
-    # Check for required settings
     if not get_setting("api_key") or not get_setting("city"):
         print("Set API key and city in GUI. 🌟", type_="INFO")
 
-    # UTC offsets configuration
     utc_offsets = sorted([-12.0, -11.0, -10.0, -9.5, -9.0, -8.0, -7.0, -6.0, -5.0, -4.5, -4.0, -3.5, -3.0, -2.0, -1.0,
                           0.0, 1.0, 2.0, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 5.75, 6.0, 6.5, 7.0, 8.0, 8.5, 9.0, 9.5,
                           10.0, 10.5, 11.0, 12.0, 12.75, 13.0, 14.0])
     offset_items = [{"id": str(off), "title": f"UTC{'-' if off < 0 else '+'}{abs(int(off)):02d}:{int((abs(off) - int(abs(off))) * 60):02d}"} for off in utc_offsets]
 
-    # Cache modes configuration
     cache_modes = [
         {"id": "live", "title": "Live (30s, may hit limits) ⚠️"},
         {"id": "5min", "title": "Every 5 Min 🕐"},
@@ -174,15 +148,12 @@ def NightyWeather():
     mode_reverse = {30: "live", 300: "5min", 900: "15min", 1800: "30min", 3600: "60min"}
     selected_mode = mode_reverse.get(get_setting("cache_duration"), "30min")
 
-    # Create tab and main container
     tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
     container = tab.create_container(type="rows")
-    
-    # Core Settings Card: Basic inputs and selects
-    core_card = container.create_card(height="auto", width="full", gap=2, title="Core Settings ⚙️")
-    
+    card = container.create_card(height="full", width="full", gap=3)
+
     try:
-        core_card.create_ui_element(
+        card.create_ui_element(
             UI.Image,
             url=IMAGE_URL,
             alt="Weather Showcase",
@@ -198,65 +169,33 @@ def NightyWeather():
     except Exception as e:
         print(f"Failed to load image: {str(e)}", type_="ERROR")
 
-    core_card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=get_setting("api_key"))
-    core_card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=get_setting("city"))
-    core_card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(get_setting("utc_offset"))], onChange=update_utc_offset)
-    core_card.create_ui_element(UI.Select, label="Time Format ⏰", full_width=True, mode="single", items=[
-        {"id": "12", "title": "12-hour (e.g., 7:58 PM)"},
-        {"id": "12s", "title": "12-hour with seconds (e.g., 7:58:23 PM)"},
+    card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=get_setting("api_key"))
+    card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=get_setting("city"))
+    card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(get_setting("utc_offset"))], onChange=update_utc_offset)
+    card.create_ui_element(UI.Select, label="Time Format ⏰", full_width=True, mode="single", items=[
+        {"id": "12", "title": "12-hour (e.g., 7:58 AM)"},
+        {"id": "12s", "title": "12-hour with seconds (e.g., 7:58:23 AM)"},
         {"id": "24", "title": "24-hour (e.g., 19:58)"},
         {"id": "24s", "title": "24-hour with seconds (e.g., 19:58:23)"}
     ], selected_items=[get_setting("time_format")], onChange=update_time_format)
-    core_card.create_ui_element(UI.Select, label="Temperature Unit 🌡️", full_width=True, mode="single", items=[
+    card.create_ui_element(UI.Select, label="Temperature Unit 🌡️", full_width=True, mode="single", items=[
         {"id": "C", "title": "Celsius (°C)"},
         {"id": "F", "title": "Fahrenheit (°F)"}
     ], selected_items=[get_setting("temp_unit")], onChange=update_temp_unit)
-    core_card.create_ui_element(UI.Select, label="Temperature Precision 📏", full_width=True, mode="single", items=[
-        {"id": "int", "title": "Integer (e.g., 22°)"},
-        {"id": "1dec", "title": "One Decimal (e.g., 22.4°)"}
+    card.create_ui_element(UI.Select, label="Temperature Precision 📏", full_width=True, mode="single", items=[
+        {"id": "int", "title": "Integer (e.g., 22°C)"},
+        {"id": "1dec", "title": "One Decimal (e.g., 21.7°C)"}
     ], selected_items=[get_setting("temp_precision")], onChange=update_temp_precision)
-    core_card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
+    card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
 
-    # New Card 1: Weather Text & Icon Options
-    text_icon_card = container.create_card(height="auto", width="full", gap=2, title="Weather Text & Icon Options 📝🖼️")
-    text_icon_card.create_ui_element(UI.Select, label="Weather Condition Text Case", full_width=True, mode="single", items=[
-        {"id": "title", "title": "Title Case (e.g., Partly Cloudy)"},
-        {"id": "lower", "title": "Lowercase (e.g., partly cloudy)"},
-        {"id": "upper", "title": "Uppercase (e.g., PARTLY CLOUDY)"}
-    ], selected_items=[get_setting("weather_text_case")], onChange=update_weather_text_case)
-    text_icon_card.create_ui_element(UI.Select, label="Weather Icon Size", full_width=True, mode="single", items=[
-        {"id": "small", "title": "Small (32x32 px)"},
-        {"id": "medium", "title": "Medium (64x64 px)"},
-        {"id": "large", "title": "Large (128x128 px)"}
-    ], selected_items=[get_setting("icon_size")], onChange=update_icon_size)
-
-    # New Card 2: Additional Data Toggles
-    extra_data_card = container.create_card(height="auto", width="full", gap=2, title="Additional Data Options 📊")
-    extra_data_card.create_ui_element(UI.Switch, label="Show Humidity 💧", checked=get_setting("show_humidity"), onChange=update_show_humidity)
-    extra_data_card.create_ui_element(UI.Switch, label="Show Wind Speed 💨", checked=get_setting("show_wind"), onChange=update_show_wind)
-
-    # New Card 3: Date Display Options
-    date_card = container.create_card(height="auto", width="full", gap=2, title="Date Display Options 📅")
-    date_card.create_ui_element(UI.Select, label="Date Format", full_width=True, mode="single", items=[
-        {"id": "short", "title": "Short (e.g., Oct 19)"},
-        {"id": "medium", "title": "Medium (e.g., Oct 19, 2025)"},
-        {"id": "long", "title": "Long (e.g., Saturday, October 19, 2025)"},
-        {"id": "none", "title": "Hide Date"}
-    ], selected_items=[get_setting("date_format")], onChange=update_date_format)
-
-    # Display Info Card: Updated with new placeholders
-    display_card = container.create_card(height="auto", width="full", gap=2, title="Display Preview 📺")
-    display_card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature (e.g., 22°C or 71.6°F)\n🏙️ {city}: Your selected city (e.g., Seoul or New York)\n🕐 {time}: Local time (e.g., 7:58 PM or 19:58:23)\n📅 {date}: Current date in chosen format (e.g., Oct 19, 2025)\n☁️ {weatherState}: Weather condition (e.g., partly cloudy)\n🖼️ {weathericon}: Weather icon (size-adjustable)\n💧 {humidity}: Humidity % (if enabled)\n💨 {windSpeed}: Wind speed (if enabled)\n\nUse these in your RPC display for dynamic updates!", full_width=True)
-
-    # Action Card: Button and info text
-    action_card = container.create_card(height="auto", width="full", gap=2, title="Actions & Info ℹ️")
-    action_card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
+    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature in your chosen unit and precision (e.g., 22°C or 71.6°F)\n🏙️ {city}: Your selected city or location (e.g., Seoul or New York)\n🕐 {time}: Local time adjusted for UTC offset (e.g., 7:58 PM or 19:58:23)\n☁️ {weatherState}: Current weather condition description (e.g., sunny, partly cloudy, or rainy)\n🖼️ {weathericon}: Displays the current weather condition as a small icon image in the designated small image section, automatically updated based on real-time weather data (e.g., a sun icon for sunny weather) use only small image url to avoid distortion", full_width=True)
+    card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
 
     def open_weatherapi():
         webbrowser.open("https://www.weatherapi.com/")
         print("Opening WeatherAPI website... 🌐", type_="INFO")
 
-    action_card.create_ui_element(
+    card.create_ui_element(
         UI.Button,
         label="Visit WeatherAPI 🌐",
         variant="solid",
@@ -266,14 +205,13 @@ def NightyWeather():
         onClick=open_weatherapi
     )
 
-    # Weather fetching function (unchanged)
     def fetch_weather_data():
         try:
             api_key = get_setting("api_key")
             city = get_setting("city")
             if not api_key or not city:
                 return None
-            current_time = datetime.now(timezone.utc).timestamp()
+            current_time = datetime.now(timezone.utc).timestamp()  # Use UTC
             cache_duration = get_setting("cache_duration") or 1800
             cache = load_cache()
             if cache_duration > 0 and cache["data"] and (current_time - cache["timestamp"]) < cache_duration:
@@ -301,7 +239,7 @@ def NightyWeather():
                         print(f"WeatherAPI error: {data['error']['message']}", type_="ERROR")
                         return cache["data"] if cache["data"] else None
                     cache["data"] = data
-                    cache["timestamp"] = datetime.now(timezone.utc).timestamp()
+                    cache["timestamp"] = datetime.now(timezone.utc).timestamp()  # Use UTC
                     cache["call_count"] = cache.get("call_count", 0) + 1
                     live_mode_warning_shown = cache["live_mode_warning_shown"]
                     call_limit_warning_shown = cache["call_limit_warning_shown"]
@@ -323,7 +261,6 @@ def NightyWeather():
             print(f"Fetch error: {str(e)}", type_="ERROR")
             return cache["data"] if cache["data"] else None
 
-    # Updated Getter functions with new options
     def get_weather_temp():
         data = fetch_weather_data()
         if not data or "current" not in data:
@@ -350,7 +287,7 @@ def NightyWeather():
             time_format = get_setting("time_format") or "12"
             if not -14 <= utc_offset <= 14:
                 raise ValueError("Invalid UTC offset")
-            utc_now = datetime.now(timezone.utc)
+            utc_now = datetime.now(timezone.utc)  # Always start with UTC
             target_time = utc_now + timedelta(seconds=int(utc_offset * 3600))
             if time_format == "12":
                 fmt = "%I:%M %p"
@@ -367,68 +304,25 @@ def NightyWeather():
             print(f"Time error: {str(e)}", type_="ERROR")
             return datetime.now(timezone.utc).strftime("%I:%M %p").lstrip("0")
 
-    def get_date():
-        date_format = get_setting("date_format") or "short"
-        utc_now = datetime.now(timezone.utc)
-        utc_offset = float(get_setting("utc_offset") or 0.0)
-        target_time = utc_now + timedelta(seconds=int(utc_offset * 3600))
-        if date_format == "short":
-            return target_time.strftime("%b %d")
-        elif date_format == "medium":
-            return target_time.strftime("%b %d, %Y")
-        elif date_format == "long":
-            return target_time.strftime("%A, %B %d, %Y")
-        else:  # "none"
-            return ""
-
     def get_weather_state():
         data = fetch_weather_data()
-        if not data or "current" not in data or "condition" not in data["current"]:
-            return "unknown"
-        text = data["current"]["condition"]["text"]
-        case = get_setting("weather_text_case") or "title"
-        if case == "lower":
-            return text.lower()
-        elif case == "upper":
-            return text.upper()
-        else:  # title
-            return text.title()
+        return data["current"]["condition"]["text"].lower() if data and "current" in data and "condition" in data["current"] else "unknown"
 
     def get_weather_icon():
         data = fetch_weather_data()
         if data and "current" in data and "condition" in data["current"]:
             icon_url = data["current"]["condition"]["icon"]
+            # Prepend https: and upscale to 128x128 for better quality
             if icon_url:
-                size_map = {"small": "32x32", "medium": "64x64", "large": "128x128"}
-                size = size_map.get(get_setting("icon_size"), "64x64")
-                icon_url = "https:" + icon_url.replace("64x64", size)
+                icon_url = "https:" + icon_url.replace("64x64", "128x128")
                 return icon_url
         return ""
 
-    def get_humidity():
-        if not get_setting("show_humidity"):
-            return ""
-        data = fetch_weather_data()
-        return f"{data['current']['humidity']}% humidity" if data and "current" in data else ""
-
-    def get_wind_speed():
-        if not get_setting("show_wind"):
-            return ""
-        data = fetch_weather_data()
-        if data and "current" in data:
-            unit = "mph" if get_setting("temp_unit") == "F" else "kph"
-            return f"{data['current'][f'wind_{unit}']:.1f} {unit}" if f'wind_{unit}' in data['current'] else ""
-        return ""
-
-    # Register RPC values (updated with new ones)
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
     addDRPCValue("time", get_time)
-    addDRPCValue("date", get_date)
     addDRPCValue("weatherState", get_weather_state)
     addDRPCValue("weathericon", get_weather_icon)
-    addDRPCValue("humidity", get_humidity)
-    addDRPCValue("windSpeed", get_wind_speed)
 
-    print("NightyWeather running with new options! 🌤️", type_="SUCCESS")
+    print("NightyWeather running 🌤️", type_="SUCCESS")
     tab.render()
