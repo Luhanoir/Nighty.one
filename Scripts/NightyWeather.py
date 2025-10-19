@@ -248,57 +248,6 @@ def NightyWeather():
     display_card = container.create_card(height="auto", width="full", gap=2, title="Display Preview 📺")
     display_card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature (e.g., 22°C or 71.6°F)\n🏙️ {city}: Your selected city (e.g., Seoul or New York)\n🕐 {time}: Local time (e.g., 7:58 PM or 19:58:23)\n📅 {date}: Current date in chosen format (e.g., Oct 19, 2025)\n☁️ {weatherState}: Weather condition (e.g., partly cloudy)\n🖼️ {weathericon}: Weather icon (size-adjustable)\n💧 {humidity}: Humidity % (if enabled)\n💨 {windSpeed}: Wind speed (if enabled)\n\nUse these in your RPC display for dynamic updates!", full_width=True)
 
-    # New: RPC Showcase Card - Displays current active RPC values as a mock profile preview
-    rpc_showcase_card = container.create_card(height="auto", width="full", gap=2, title="Active RPC Showcase 👤 (User Profile Preview)")
-
-    # Function to generate current RPC preview text
-    def generate_rpc_preview():
-        try:
-            # Call getters to get current values
-            temp = get_weather_temp()
-            city_val = get_city()
-            time_val = get_time()
-            date_val = get_date()
-            state = get_weather_state()
-            humidity_val = get_humidity()
-            wind_val = get_wind_speed()
-            
-            # Mock Discord profile format (e.g., as it might appear in User Profile tab)
-            preview = f"""🚀 Current Active RPC Status (via Nighty Selfbot):
-
-📍 Location: {city_val}
-🕐 Time: {time_val}
-📅 Date: {date_val}
-🌡️ Temperature: {temp}
-☁️ Condition: {state}
-{humidity_val if humidity_val else ''}
-{wind_val if wind_val else ''}
-
-💡 Tip: This is a live snapshot of your RPC values. Changes in settings update your Discord profile instantly via Nighty!
-🔄 Reload this tab or adjust settings to see updates. View full profile in Nighty's User Profile tab."""
-            return preview
-        except Exception as e:
-            return f"Preview generation error: {str(e)}\nEnsure API key and city are set."
-
-    # Add the preview text element
-    rpc_showcase_card.create_ui_element(UI.Text, content=generate_rpc_preview(), full_width=True)
-
-    # Optional: Add a refresh button to regenerate preview (if UI supports dynamic updates; otherwise, reload tab)
-    def refresh_preview():
-        # This would require re-rendering, but for now, log/print current state
-        print(generate_rpc_preview(), type_="INFO")
-        print("RPC preview refreshed! Check console or reload tab for visual update. 🔄", type_="SUCCESS")
-
-    rpc_showcase_card.create_ui_element(
-        UI.Button,
-        label="Refresh RPC Preview 🔄",
-        variant="outline",
-        size="md",
-        color="default",
-        full_width=True,
-        onClick=refresh_preview
-    )
-
     # Action Card: Button and info text
     action_card = container.create_card(height="auto", width="full", gap=2, title="Actions & Info ℹ️")
     action_card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
