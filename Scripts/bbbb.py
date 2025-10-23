@@ -20,7 +20,7 @@ def NightyWeather():
         defaults = {
             "api_key": "", "city": "", "utc_offset": 0.0,
             "time_format": "12", "temp_unit": "C", "temp_precision": "int",
-            "cache_duration": 300, "show_date": False, "time_interval": "60s"
+            "cache_duration": 300, "show_date": False
         }
 
         def __init__(self):
@@ -132,10 +132,6 @@ def NightyWeather():
         settings.update("show_date", selected[0] == "yes")
         print("Date display updated! Time will refresh automatically. 📅", type="SUCCESS")
 
-    def update_time_interval(selected):
-        settings.update("time_interval", selected[0])
-        print("Time update interval updated! Clock refreshes accordingly. 🕒", type="SUCCESS")
-
     def reset_cache():
         cache.data["data"] = None
         cache.data["timestamp"] = 0
@@ -159,12 +155,6 @@ def NightyWeather():
     ]
     mode_reverse = {300: "5min", 900: "15min", 1800: "30min", 3600: "60min"}
     selected_mode = mode_reverse.get(settings.get("cache_duration"), "5min")
-
-    time_intervals = [
-        {"id": "1s", "title": "Every 1 Second ⚡"},
-        {"id": "10s", "title": "Every 10 Seconds 🕒"},
-        {"id": "60s", "title": "Every 60 Seconds ⏱️"}
-    ]
 
     tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
     container = tab.create_container(type="rows")
@@ -210,7 +200,6 @@ def NightyWeather():
         {"id": "yes", "title": "Yes (e.g., 7:58 PM - Oct 22)"},
         {"id": "no", "title": "No"}
     ], selected_items=["yes" if settings.get("show_date") else "no"], onChange=update_show_date, tooltip="Append date to time display.")
-    card.create_ui_element(UI.Select, label="Time Update Interval 🕒", full_width=True, mode="single", items=time_intervals, selected_items=[settings.get("time_interval")], onChange=update_time_interval, tooltip="Local clock refresh rate (no API impact).")
 
     card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature (e.g., 22°C)\n🏙️ {city}: Selected city\n🕐 {time}: Local time (with optional date)\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Small weather icon (use small URL)", full_width=True)
     card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
