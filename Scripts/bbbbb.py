@@ -160,12 +160,7 @@ def NightyWeather():
 
     tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
     container = tab.create_container(type="rows")
-    card = container.create_card(
-        height="full",
-        width="full",
-        gap=3,
-        hover_description="Check current weather, temperature, and local time for your city with customizable settings."
-    )
+    card = container.create_card(height="full", width="full", gap=3)
 
     try:
         card.create_ui_element(
@@ -190,27 +185,27 @@ def NightyWeather():
         )
 
     card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=settings.get("api_key"), is_secure=True)
-    card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=settings.get("city"), tooltip="Use Latin script city names (e.g., 'Seoul') for best results.")
-    card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(settings.get("utc_offset"))], onChange=update_utc_offset, tooltip="Select your timezone offset from UTC.")
+    card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=settings.get("city"))
+    card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(settings.get("utc_offset"))], onChange=update_utc_offset)
     card.create_ui_element(UI.Select, label="Time Format ⏰", full_width=True, mode="single", items=[
         {"id": "12", "title": "12-hour (e.g., 7:58 AM)"},
         {"id": "12s", "title": "12-hour with seconds (e.g., 7:58:23 AM)"},
         {"id": "24", "title": "24-hour (e.g., 19:58)"},
         {"id": "24s", "title": "24-hour with seconds (e.g., 19:58:23)"}
-    ], selected_items=[settings.get("time_format")], onChange=update_time_format, tooltip="Choose how time is displayed.")
+    ], selected_items=[settings.get("time_format")], onChange=update_time_format)
     card.create_ui_element(UI.Select, label="Temperature Unit 🌡️", full_width=True, mode="single", items=[
         {"id": "C", "title": "Celsius (°C)"},
         {"id": "F", "title": "Fahrenheit (°F)"}
-    ], selected_items=[settings.get("temp_unit")], onChange=update_temp_unit, tooltip="Select temperature scale.")
+    ], selected_items=[settings.get("temp_unit")], onChange=update_temp_unit)
     card.create_ui_element(UI.Select, label="Temperature Precision 📏", full_width=True, mode="single", items=[
         {"id": "int", "title": "Integer (e.g., 22°)"},
         {"id": "1dec", "title": "Decimal (e.g., 21.7°)"}
-    ], selected_items=[settings.get("temp_precision")], onChange=update_temp_precision, tooltip="Set decimal precision for temp.")
-    card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode, tooltip="Higher intervals save API calls.")
+    ], selected_items=[settings.get("temp_precision")], onChange=update_temp_precision)
+    card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
     card.create_ui_element(UI.Select, label="Show Date with Time 📅", full_width=True, mode="single", items=[
         {"id": "yes", "title": "Yes (e.g., 7:58 PM - Oct 22)"},
         {"id": "no", "title": "No"}
-    ], selected_items=["yes" if settings.get("show_date") else "no"], onChange=update_show_date, tooltip="Append date to time display.")
+    ], selected_items=["yes" if settings.get("show_date") else "no"], onChange=update_show_date)
 
     card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature (e.g., 22°C)\n🏙️ {city}: Selected city\n🕐 {time}: Local time (with optional date)\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Weather icon", full_width=True)
     card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
