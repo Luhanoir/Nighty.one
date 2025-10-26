@@ -9,7 +9,6 @@ import re
 def NightyWeather():
     RETRIES = 3
     IMAGE_URL = "https://i.imgur.com/m0xu9yk.gif"
-    FALLBACK_IMAGE_URL = "https://example.com/fallback.gif"
     SCRIPT_DATA_DIR = f"{getScriptsPath()}/scriptData"
     CONFIG_PATH = f"{SCRIPT_DATA_DIR}/NightyWeather.json"
     CACHE_PATH = f"{SCRIPT_DATA_DIR}/NightyWeatherCache.json"
@@ -127,9 +126,6 @@ def NightyWeather():
     def update_cache_mode(selected):
         mode_map = {"5min": 300, "15min": 900, "30min": 1800, "60min": 3600}
         new_duration = mode_map.get(selected[0], 300)
-        if settings.get("cache_duration") == 30:
-            new_duration = 300
-            print("Live mode removed; set to 5min. ⚙️", type="INFO")
         settings.update("cache_duration", max(new_duration, 300))
         reset_cache()
         print(f"Cache mode updated to {selected[0]}! Data refreshes every {new_duration}s. ⚙️", type="SUCCESS")
@@ -164,7 +160,12 @@ def NightyWeather():
 
     tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
     container = tab.create_container(type="rows")
-    card = container.create_card(height="full", width="full", gap=3)
+    card = container.create_card(
+        height="full",
+        width="full",
+        gap=3,
+        hover_description="Check current weather, temperature, and local time for your city with customizable settings."
+    )
 
     try:
         card.create_ui_element(
@@ -181,23 +182,15 @@ def NightyWeather():
             shadow=True
         )
     except Exception as e:
-        print(f"Failed to load image: {str(e)}. Using fallback.", type="ERROR")
+        print(f"Failed to load image: {str(e)}. Showing placeholder.", type="ERROR")
         card.create_ui_element(
-            UI.Image,
-            url=FALLBACK_IMAGE_URL,
-            alt="Fallback",
-            width="100%",
-            height="200px",
-            rounded="md",
-            fill_type="contain",
-            border_color="#4B5EAA",
-            border_width=2,
-            margin="m-2",
-            shadow=True
+            UI.Text,
+            content="⚠️ Unable to load weather image.",
+            full_width=True
         )
 
     card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=settings.get("api_key"), is_secure=True)
-    card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=settings.get("city"))
+    card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=settings.get("city"), tooltip="Use Latin script city names (e.g., 'Seoul') for best results.")
     card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(settings.get("utc_offset"))], onChange=update_utc_offset, tooltip="Select your timezone offset from UTC.")
     card.create_ui_element(UI.Select, label="Time Format ⏰", full_width=True, mode="single", items=[
         {"id": "12", "title": "12-hour (e.g., 7:58 AM)"},
@@ -219,7 +212,7 @@ def NightyWeather():
         {"id": "no", "title": "No"}
     ], selected_items=["yes" if settings.get("show_date") else "no"], onChange=update_show_date, tooltip="Append date to time display.")
 
-    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature (e.g., 22°C)\n🏙️ {city}: Selected city\n🕐 {time}: Local time (with optional date)\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Small weather icon (use small URL)", full_width=True)
+    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature (e.g., 22°C)\n🏙️ {city}: Selected city\n🕐 {time}: Local time (with optional date)\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Weather icon", full_width=True)
     card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
 
     def open_weatherapi():
