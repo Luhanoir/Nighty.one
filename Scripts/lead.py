@@ -160,11 +160,6 @@ def NightyWeather():
         cache.data["call_limit_warning_shown"] = False
         cache.save()
 
-    def refresh_weather():
-        reset_cache()
-        fetch_weather_data()
-        print("Weather data refreshed manually! 🌤️", type="SUCCESS")
-
     if not settings.get("api_key") or not settings.get("city"):
         print("Set API key and city in GUI. 🌟", type="INFO")
 
@@ -220,18 +215,6 @@ def NightyWeather():
             margin="m-2",
             shadow=True
         )
-
-    card.create_ui_element(
-        UI.Image,
-        url=get_weather_icon,
-        alt="Current Weather Icon",
-        width="64px",
-        height="64px",
-        rounded="sm",
-        fill_type="contain",
-        margin="m-2",
-        shadow=True
-    )
 
     card.create_ui_element(
         UI.Input,
@@ -328,22 +311,13 @@ def NightyWeather():
     )
     card.create_ui_element(
         UI.Text,
-        content="🌤️ {weatherTemp}: Current temperature\n🏙️ {city}: Selected city\n🕐 {time}: Local time (with optional date)\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Weather icon",
+        content="🌤️ {weatherTemp}: Current temperature\n🏙️ {city}: Selected city\n🕐 {time}: Local time (with optional date)\n☁️ {weatherState}: Weather condition",
         full_width=True
     )
     card.create_ui_element(
         UI.Text,
         content="ℹ️ Wait 30min after WeatherAPI signup for key approval.",
         full_width=True
-    )
-    card.create_ui_element(
-        UI.Button,
-        label="Refresh Weather Now 🔄",
-        variant="solid",
-        size="md",
-        color="default",
-        full_width=True,
-        onClick=refresh_weather
     )
     card.create_ui_element(
         UI.Button,
@@ -429,7 +403,7 @@ def NightyWeather():
     def get_time():
         """Returns formatted local time with optional date based on settings."""
         try:
-            utc_offset = float(settings.get("utc_offset") or 0.0)  # Validated in update
+            utc_offset = float(settings.get("utc_offset") or 0.0)
             time_format = settings.get("time_format") or "12"
             show_date = settings.get("show_date")
             utc_now = datetime.now(timezone.utc)
@@ -443,12 +417,10 @@ def NightyWeather():
             elif time_format == "24s":
                 fmt = "%H:%M:%S"
             else:
-                fmt = "%I:%M %p"  # Fallback
+                fmt = "%I:%M %p"
             time_str = target_time.strftime(fmt)
-            # Remove leading zero in 12-hour format for hours < 10
             if time_format.startswith("12") and time_str[0] == "0":
                 time_str = time_str[1:]
-            # Handle midnight (00:XX AM/PM) in 12-hour format
             if time_format.startswith("12") and time_str.startswith("00:"):
                 time_str = "12:" + time_str[3:]
             if show_date:
@@ -464,20 +436,10 @@ def NightyWeather():
         data = fetch_weather_data()
         return data["current"]["condition"]["text"].lower() if data and "current" in data else "unknown"
 
-    def get_weather_icon():
-        """Returns URL for weather icon or empty string if unavailable."""
-        data = fetch_weather_data()
-        if data and "current" in data:
-            icon_url = data["current"]["condition"]["icon"]
-            if icon_url:
-                return "https:" + icon_url.replace("64x64", "128x128")
-        return ""
-
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
     addDRPCValue("time", get_time)
     addDRPCValue("weatherState", get_weather_state)
-    addDRPCValue("weathericon", get_weather_icon)
 
     print("NightyWeather running 🌤️", type="SUCCESS")
     tab.render()
