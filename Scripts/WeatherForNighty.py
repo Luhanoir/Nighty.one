@@ -81,10 +81,15 @@ def NightyWeather():
                 return self._default()
 
         def _default(self):
-            return {"data": None, "timestamp": 0, "call_count": 0, "call_limit_warning_shown": False}
+            return {
+                "data": None,
+                "timestamp": 0,
+                "call_count": 0,
+                "call_limit_warning_shown": False
+            }
 
         def save(self):
-            # Write atomically to reduce corruption risk
+            # Atomic write to reduce corruption risk
             tmp_path = CACHE_PATH + ".tmp"
             with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=2)
@@ -151,10 +156,26 @@ def NightyWeather():
     if not settings.get("api_key") or not settings.get("city"):
         print("Set API key and city in GUI. 🌟", type="INFO")
 
-    utc_offsets = sorted([-12.0, -11.0, -10.0, -9.5, -9.0, -8.0, -7.0, -6.0, -5.0, -4.5, -4.0, -3.5, -3.0, -2.0, -1.0,
-                          0.0, 1.0, 2.0, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 5.75, 6.0, 6.5, 7.0, 8.0, 8.5, 9.0, 9.5,
-                          10.0, 10.5, 11.0, 12.0, 12.75, 13.0, 14.0])
-    offset_items = [{"id": str(off), "title": f"UTC{'-' if off < 0 else '+'}{abs(int(off)):02d}:{int((abs(off) - int(abs(off))) * 60):02d}"} for off in utc_offsets]
+    utc_offsets = sorted([
+        -12.0, -11.0, -10.0, -9.5, -9.0, -8.0, -7.0, -6.0, -5.0,
+        -4.5, -4.0, -3.5, -3.0, -2.0, -1.0,
+        0.0,
+        1.0, 2.0, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 5.75,
+        6.0, 6.5, 7.0, 8.0, 8.5, 9.0, 9.5,
+        10.0, 10.5, 11.0, 12.0, 12.75, 13.0, 14.0
+    ])
+
+    offset_items = [
+        {
+            "id": str(off),
+            "title": (
+                f"UTC{'-' if off < 0 else '+'}"
+                f"{abs(int(off)):02d}:"
+                f"{int((abs(off) - int(abs(off))) * 60):02d}"
+            )
+        }
+        for off in utc_offsets
+    ]
 
     cache_modes = [
         {"id": "5min", "title": "Every 5 Min 🕐"},
@@ -191,31 +212,110 @@ def NightyWeather():
             full_width=True
         )
 
-    card.create_ui_element(UI.Input, label="API Key 🔑", show_clear_button=True, full_width=True, required=True, onInput=update_api_key, value=settings.get("api_key"), is_secure=True)
-    card.create_ui_element(UI.Input, label="City 🏙️", show_clear_button=True, full_width=True, required=True, onInput=update_city, value=settings.get("city"))
-    card.create_ui_element(UI.Select, label="UTC Offset 🌍", full_width=True, mode="single", items=offset_items, selected_items=[str(settings.get("utc_offset"))], onChange=update_utc_offset)
-    card.create_ui_element(UI.Select, label="Time Format ⏰", full_width=True, mode="single", items=[
-        {"id": "12", "title": "12-hour (e.g., 7:58 AM)"},
-        {"id": "12s", "title": "12-hour with seconds (e.g., 7:58:23 AM)"},
-        {"id": "24", "title": "24-hour (e.g., 19:58)"},
-        {"id": "24s", "title": "24-hour with seconds (e.g., 19:58:23)"}
-    ], selected_items=[settings.get("time_format")], onChange=update_time_format)
-    card.create_ui_element(UI.Select, label="Temperature Unit 🌡️", full_width=True, mode="single", items=[
-        {"id": "C", "title": "Celsius (°C)"},
-        {"id": "F", "title": "Fahrenheit (°F)"}
-    ], selected_items=[settings.get("temp_unit")], onChange=update_temp_unit)
-    card.create_ui_element(UI.Select, label="Temperature Precision 📏", full_width=True, mode="single", items=[
-        {"id": "int", "title": "Integer (e.g., 22°)"},
-        {"id": "1dec", "title": "Decimal (e.g., 21.7°)"}
-    ], selected_items=[settings.get("temp_precision")], onChange=update_temp_precision)
-    card.create_ui_element(UI.Select, label="Cache Mode ⚙️", full_width=True, mode="single", items=cache_modes, selected_items=[selected_mode], onChange=update_cache_mode)
-    card.create_ui_element(UI.Select, label="Show Date with Time 📅", full_width=True, mode="single", items=[
-        {"id": "yes", "title": "Yes (e.g., 7:58 PM - Oct 22)"},
-        {"id": "no", "title": "No"}
-    ], selected_items=["yes" if settings.get("show_date") else "no"], onChange=update_show_date)
+    card.create_ui_element(
+        UI.Input,
+        label="API Key 🔑",
+        show_clear_button=True,
+        full_width=True,
+        required=True,
+        onInput=update_api_key,
+        value=settings.get("api_key"),
+        is_secure=True
+    )
+    card.create_ui_element(
+        UI.Input,
+        label="City 🏙️",
+        show_clear_button=True,
+        full_width=True,
+        required=True,
+        onInput=update_city,
+        value=settings.get("city")
+    )
+    card.create_ui_element(
+        UI.Select,
+        label="UTC Offset 🌍",
+        full_width=True,
+        mode="single",
+        items=offset_items,
+        selected_items=[str(settings.get("utc_offset"))],
+        onChange=update_utc_offset
+    )
+    card.create_ui_element(
+        UI.Select,
+        label="Time Format ⏰",
+        full_width=True,
+        mode="single",
+        items=[
+            {"id": "12", "title": "12-hour (e.g., 7:58 AM)"},
+            {"id": "12s", "title": "12-hour with seconds (e.g., 7:58:23 AM)"},
+            {"id": "24", "title": "24-hour (e.g., 19:58)"},
+            {"id": "24s", "title": "24-hour with seconds (e.g., 19:58:23)"}
+        ],
+        selected_items=[settings.get("time_format")],
+        onChange=update_time_format
+    )
+    card.create_ui_element(
+        UI.Select,
+        label="Temperature Unit 🌡️",
+        full_width=True,
+        mode="single",
+        items=[
+            {"id": "C", "title": "Celsius (°C)"},
+            {"id": "F", "title": "Fahrenheit (°F)"}
+        ],
+        selected_items=[settings.get("temp_unit")],
+        onChange=update_temp_unit
+    )
+    card.create_ui_element(
+        UI.Select,
+        label="Temperature Precision 📏",
+        full_width=True,
+        mode="single",
+        items=[
+            {"id": "int", "title": "Integer (e.g., 22°)"},
+            {"id": "1dec", "title": "Decimal (e.g., 21.7°)"}
+        ],
+        selected_items=[settings.get("temp_precision")],
+        onChange=update_temp_precision
+    )
+    card.create_ui_element(
+        UI.Select,
+        label="Cache Mode ⚙️",
+        full_width=True,
+        mode="single",
+        items=cache_modes,
+        selected_items=[selected_mode],
+        onChange=update_cache_mode
+    )
+    card.create_ui_element(
+        UI.Select,
+        label="Show Date with Time 📅",
+        full_width=True,
+        mode="single",
+        items=[
+            {"id": "yes", "title": "Yes (e.g., 7:58 PM - Oct 22)"},
+            {"id": "no", "title": "No"}
+        ],
+        selected_items=["yes" if settings.get("show_date") else "no"],
+        onChange=update_show_date
+    )
 
-    card.create_ui_element(UI.Text, content="🌤️ {weatherTemp}: Current temperature (e.g., 22°C)\n🏙️ {city}: Selected city\n🕐 {time}: Local time (with optional date)\n☁️ {weatherState}: Weather condition\n🖼️ {weathericon}: Weather icon", full_width=True)
-    card.create_ui_element(UI.Text, content="ℹ️ Wait 30min after WeatherAPI signup for key approval.", full_width=True)
+    card.create_ui_element(
+        UI.Text,
+        content=(
+            "🌤️ {weatherTemp}: Current temperature (e.g., 22°C)\n"
+            "🏙️ {city}: Selected city\n"
+            "🕐 {time}: Local time (with optional date)\n"
+            "☁️ {weatherState}: Weather condition\n"
+            "🖼️ {weathericon}: Weather icon"
+        ),
+        full_width=True
+    )
+    card.create_ui_element(
+        UI.Text,
+        content="ℹ️ Wait 30min after WeatherAPI signup for key approval.",
+        full_width=True
+    )
 
     def open_weatherapi():
         webbrowser.open("https://www.weatherapi.com/")
@@ -232,12 +332,12 @@ def NightyWeather():
     )
 
     # ---------------------------
-    # Robust fetch implementation
+    # Robust fetch implementation (HTTPS only)
     # ---------------------------
     def fetch_weather_data():
         """
         Fetch current weather from WeatherAPI with retries, backoff, and caching.
-        Returns parsed JSON on success or the cached data on failure.
+        Always uses HTTPS. Returns parsed JSON on success or cached data on failure.
         """
         try:
             api_key = settings.get("api_key")
@@ -257,12 +357,10 @@ def NightyWeather():
                 print("Cache expired (24h). Resetting.", type="INFO")
                 reset_cache()
 
-            # Prepare request
             url = "https://api.weatherapi.com/v1/current.json"
             params = {"key": api_key, "q": city, "aqi": "no"}
             session = requests.Session()
 
-            # Exponential backoff base and per-attempt timeout tuning
             backoff_base = 2
             connect_timeout = 5  # seconds
             read_timeout = 10    # seconds
@@ -270,8 +368,12 @@ def NightyWeather():
             last_exception = None
             for attempt in range(1, RETRIES + 1):
                 try:
-                    resp = session.get(url, params=params, timeout=(connect_timeout, read_timeout))
-                    # If we get a 429, treat as retryable
+                    resp = session.get(
+                        url,
+                        params=params,
+                        timeout=(connect_timeout, read_timeout)
+                    )
+
                     if resp.status_code == 429:
                         wait_time = backoff_base ** attempt
                         print(f"Rate limit hit (429). Retrying in {wait_time}s...", type="WARNING")
@@ -281,66 +383,79 @@ def NightyWeather():
 
                     resp.raise_for_status()
                     data = resp.json()
+
                     if isinstance(data, dict) and "error" in data:
-                        # API returned an error payload
                         msg = data["error"].get("message", "Unknown API error")
                         print(f"WeatherAPI error: {msg}", type="ERROR")
-                        # Do not overwrite cache with an error response; return cached data if present
                         return cache.data.get("data")
 
-                    # Successful fetch: update cache safely
                     cache.data["data"] = data
                     cache.data["timestamp"] = current_time
                     cache.data["call_count"] = cache.data.get("call_count", 0) + 1
+
                     if cache.data["call_count"] > 900000 and not cache.data.get("call_limit_warning_shown"):
                         print("Nearing 1M call limit. Adjust cache or upgrade. 📊", type="WARNING")
                         cache.data["call_limit_warning_shown"] = True
+
                     cache.save()
                     return data
 
                 except requests.exceptions.ConnectTimeout as e:
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(f"Connect timed out. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
+                    print(
+                        f"Connect timed out. Retrying in {wait_time}s... "
+                        f"(attempt {attempt}/{RETRIES})",
+                        type="WARNING"
+                    )
                     time.sleep(wait_time)
                 except requests.exceptions.ReadTimeout as e:
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(f"Read timed out. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
+                    print(
+                        f"Read timed out. Retrying in {wait_time}s... "
+                        f"(attempt {attempt}/{RETRIES})",
+                        type="WARNING"
+                    )
                     time.sleep(wait_time)
                 except requests.exceptions.HTTPError as e:
                     status = getattr(e.response, "status_code", None)
                     if status == 401:
                         print("Invalid API key.", type="ERROR")
                         return cache.data.get("data")
-                    # For other 4xx errors, do not retry
                     if 400 <= (status or 0) < 500:
                         print(f"HTTP error {status}. Not retrying.", type="ERROR")
                         return cache.data.get("data")
-                    # For 5xx, treat as retryable
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(f"Server error {status}. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
+                    print(
+                        f"Server error {status}. Retrying in {wait_time}s... "
+                        f"(attempt {attempt}/{RETRIES})",
+                        type="WARNING"
+                    )
                     time.sleep(wait_time)
                 except requests.exceptions.RequestException as e:
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(f"Request failed: {e}. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
+                    print(
+                        f"Request failed: {e}. Retrying in {wait_time}s... "
+                        f"(attempt {attempt}/{RETRIES})",
+                        type="WARNING"
+                    )
                     time.sleep(wait_time)
 
-            # All retries exhausted
             if last_exception:
                 print(f"Fetch failed after {RETRIES} attempts: {last_exception}", type="ERROR")
             else:
                 print(f"Fetch failed after {RETRIES} attempts.", type="ERROR")
-            # Return cached data if available, else None
+
             return cache.data.get("data")
         except Exception as e:
             print(f"Fetch error: {str(e)}", type="ERROR")
             return cache.data.get("data")
 
     # ---------------------------
-    # Helper getters that use fetch_weather_data
+    # Helper getters
     # ---------------------------
     def get_weather_temp():
         data = fetch_weather_data()
@@ -364,12 +479,13 @@ def NightyWeather():
     def get_time():
         try:
             utc_offset = float(settings.get("utc_offset") or 0.0)
-            # Clamp for safety, though list is already bounded
             utc_offset = max(min(utc_offset, 14), -14)
             time_format = settings.get("time_format") or "12"
             show_date = settings.get("show_date")
+
             utc_now = datetime.now(timezone.utc)
             target_time = utc_now + timedelta(seconds=utc_offset * 3600)
+
             if time_format == "12":
                 fmt = "%I:%M %p"
             elif time_format == "12s":
@@ -380,15 +496,19 @@ def NightyWeather():
                 fmt = "%H:%M:%S"
             else:
                 fmt = "%I:%M %p"
+
             time_str = target_time.strftime(fmt)
+
             if time_format.startswith("12"):
                 if time_str.startswith("0"):
                     time_str = time_str[1:]
                 if time_str.startswith("00:"):
                     time_str = "12:" + time_str[3:]
+
             if show_date:
                 date_str = target_time.strftime("%b %d")
                 time_str += f" - {date_str}"
+
             return time_str
         except Exception as e:
             print(f"Time error: {str(e)}", type="ERROR")
@@ -403,7 +523,6 @@ def NightyWeather():
         if data and "current" in data:
             icon_url = data["current"]["condition"].get("icon")
             if icon_url:
-                # Ensure full https URL and use larger size if available
                 if icon_url.startswith("//"):
                     icon_url = "https:" + icon_url
                 elif icon_url.startswith("/"):
