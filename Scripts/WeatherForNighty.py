@@ -5,6 +5,7 @@ import os
 import json
 import requests
 import re
+import threading
 
 def NightyWeather():
     RETRIES = 4
@@ -19,7 +20,7 @@ def NightyWeather():
         defaults = {
             "api_key": "", "city": "", "utc_offset": 0.0,
             "time_format": "12", "temp_unit": "C", "temp_precision": "int",
-            "cache_duration": 300, "show_date": False
+            "cache_duration": 900, "show_date": False  # increased default cache duration
         }
 
         def __init__(self):
@@ -57,6 +58,8 @@ def NightyWeather():
         """Manages cache for robustness and future extensions."""
         def __init__(self):
             self.data = self.load()
+            if not isinstance(self.data, dict):
+                self.data = self._default()
 
         def load(self):
             if not os.path.exists(CACHE_PATH):
@@ -85,7 +88,9 @@ def NightyWeather():
                 "data": None,
                 "timestamp": 0,
                 "call_count": 0,
-                "call_limit_warning_shown": False
+                "call_limit_warning_shown": False,
+                "icon_url": "",
+                "cooldown_until": 0
             }
 
         def save(self):
@@ -137,7 +142,7 @@ def NightyWeather():
 
     def update_cache_mode(selected):
         mode_map = {"5min": 300, "15min": 900, "30min": 1800, "60min": 3600}
-        new_duration = mode_map.get(selected[0], 300)
+        new_duration = mode_map.get(selected[0], 900)
         settings.update("cache_duration", max(new_duration, 300))
         reset_cache()
         print(f"Cache mode updated to {selected[0]}! Data refreshes every {new_duration}s. ⚙️", type="SUCCESS")
@@ -147,10 +152,7 @@ def NightyWeather():
         print("Date display updated! Time will refresh automatically. 📅", type="SUCCESS")
 
     def reset_cache():
-        cache.data["data"] = None
-        cache.data["timestamp"] = 0
-        cache.data["call_count"] = 0
-        cache.data["call_limit_warning_shown"] = False
+        cache.data = cache._default()
         cache.save()
 
     if not settings.get("api_key") or not settings.get("city"):
@@ -184,7 +186,7 @@ def NightyWeather():
         {"id": "60min", "title": "Every 60 Min 🌤️"}
     ]
     mode_reverse = {300: "5min", 900: "15min", 1800: "30min", 3600: "60min"}
-    selected_mode = mode_reverse.get(settings.get("cache_duration"), "5min")
+    selected_mode = mode_reverse.get(settings.get("cache_duration"), "15min")
 
     tab = Tab(name="NightyWeather", title="Weather & Time 🌦️", icon="sun")
     container = tab.create_container(type="rows")
@@ -333,11 +335,13 @@ def NightyWeather():
 
     # ---------------------------
     # Robust fetch implementation (HTTPS only)
+    # Single fetch loop updates cache; getters read cache only.
     # ---------------------------
     def fetch_weather_data():
         """
         Fetch current weather from WeatherAPI with retries, backoff, and caching.
         Always uses HTTPS. Returns parsed JSON on success or cached data on failure.
+        This function is intended to be called only by the background fetch loop.
         """
         try:
             api_key = settings.get("api_key")
@@ -346,7 +350,13 @@ def NightyWeather():
                 return None
 
             current_time = datetime.now(timezone.utc).timestamp()
-            cache_duration = max(settings.get("cache_duration") or 300, 300)
+            cache_duration = max(settings.get("cache_duration") or 900, 300)
+
+            # If in cooldown due to previous 429, skip network and return cached data
+            cooldown_until = cache.data.get("cooldown_until", 0)
+            if cooldown_until and current_time < cooldown_until:
+                print("In cooldown after 429; using cached data.", type="INFO")
+                return cache.data.get("data")
 
             # Use cached data if still fresh
             if cache.data.get("data") and (current_time - cache.data.get("timestamp", 0)) < cache_duration:
@@ -375,11 +385,16 @@ def NightyWeather():
                     )
 
                     if resp.status_code == 429:
+                        # On 429, set a cooldown and stop retrying aggressively.
                         wait_time = backoff_base ** attempt
-                        print(f"Rate limit hit (429). Retrying in {wait_time}s...", type="WARNING")
-                        time.sleep(wait_time)
+                        cooldown = cache_duration  # use cache duration as cooldown window
+                        cache.data["cooldown_until"] = current_time + cooldown
+                        cache.data["timestamp"] = current_time  # mark timestamp so getters use cache
+                        cache.save()
+                        print(f"Rate limit hit (429). Entering cooldown for {cooldown}s.", type="WARNING")
                         last_exception = requests.exceptions.RetryError("429 rate limited")
-                        continue
+                        # Do not retry further; break and return cached data
+                        break
 
                     resp.raise_for_status()
                     data = resp.json()
@@ -389,15 +404,37 @@ def NightyWeather():
                         print(f"WeatherAPI error: {msg}", type="ERROR")
                         return cache.data.get("data")
 
+                    # Update cache with fetched data
                     cache.data["data"] = data
                     cache.data["timestamp"] = current_time
                     cache.data["call_count"] = cache.data.get("call_count", 0) + 1
+                    cache.data["cooldown_until"] = 0
+
+                    # Extract and normalize icon URL once and store it
+                    icon_url = ""
+                    try:
+                        icon_url = data["current"]["condition"].get("icon", "") if data and "current" in data else ""
+                        if icon_url:
+                            if icon_url.startswith("//"):
+                                icon_url = "https:" + icon_url
+                            elif icon_url.startswith("/"):
+                                icon_url = "https://api.weatherapi.com" + icon_url
+                            icon_url = icon_url.replace("64x64", "128x128")
+                    except Exception:
+                        icon_url = ""
+
+                    cache.data["icon_url"] = icon_url
 
                     if cache.data["call_count"] > 900000 and not cache.data.get("call_limit_warning_shown"):
                         print("Nearing 1M call limit. Adjust cache or upgrade. 📊", type="WARNING")
                         cache.data["call_limit_warning_shown"] = True
 
                     cache.save()
+                    # Trigger UI/RPC refresh after successful fetch
+                    try:
+                        tab.render()
+                    except Exception:
+                        pass
                     return data
 
                 except requests.exceptions.ConnectTimeout as e:
@@ -455,10 +492,10 @@ def NightyWeather():
             return cache.data.get("data")
 
     # ---------------------------
-    # Helper getters
+    # Helper getters (read cache only; no network I/O)
     # ---------------------------
     def get_weather_temp():
-        data = fetch_weather_data()
+        data = cache.data.get("data")
         if not data or "current" not in data:
             return "N/A"
         temp_unit = settings.get("temp_unit") or "C"
@@ -515,26 +552,47 @@ def NightyWeather():
             return datetime.now(timezone.utc).strftime("%I:%M %p")
 
     def get_weather_state():
-        data = fetch_weather_data()
+        data = cache.data.get("data")
         return data["current"]["condition"]["text"].lower() if data and "current" in data else "unknown"
 
     def get_weather_icon():
-        data = fetch_weather_data()
-        if data and "current" in data:
-            icon_url = data["current"]["condition"].get("icon")
-            if icon_url:
-                if icon_url.startswith("//"):
-                    icon_url = "https:" + icon_url
-                elif icon_url.startswith("/"):
-                    icon_url = "https://api.weatherapi.com" + icon_url
-                return icon_url.replace("64x64", "128x128")
-        return ""
+        # Return cached icon URL (no network I/O here)
+        return cache.data.get("icon_url", "")
 
     addDRPCValue("weatherTemp", get_weather_temp)
     addDRPCValue("city", get_city)
     addDRPCValue("time", get_time)
     addDRPCValue("weatherState", get_weather_state)
     addDRPCValue("weathericon", get_weather_icon)
+
+    # ---------------------------
+    # Background fetch loop: single controlled fetch cadence
+    # ---------------------------
+    def fetch_loop():
+        while True:
+            try:
+                # Respect configured cache duration
+                cache_duration = max(settings.get("cache_duration") or 900, 300)
+                # Perform a single fetch which will update cache and call tab.render()
+                fetch_weather_data()
+                # Sleep until next scheduled fetch; if in cooldown, sleep until cooldown ends
+                current_time = datetime.now(timezone.utc).timestamp()
+                cooldown_until = cache.data.get("cooldown_until", 0)
+                if cooldown_until and cooldown_until > current_time:
+                    sleep_time = max(cooldown_until - current_time, 1)
+                else:
+                    sleep_time = cache_duration
+                # Cap sleep_time to avoid extremely long sleeps
+                sleep_time = max(1, min(sleep_time, 86400))
+                time.sleep(sleep_time)
+            except Exception as e:
+                print(f"Background fetch loop error: {e}", type="ERROR")
+                # Wait a bit before retrying loop to avoid tight error loop
+                time.sleep(10)
+
+    # Start background fetch thread as daemon so it doesn't block shutdown
+    fetch_thread = threading.Thread(target=fetch_loop, name="NightyWeatherFetchLoop", daemon=True)
+    fetch_thread.start()
 
     print("NightyWeather running 🌤️", type="SUCCESS")
     tab.render()
