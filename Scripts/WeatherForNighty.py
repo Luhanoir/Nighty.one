@@ -20,7 +20,7 @@ def NightyWeather():
         defaults = {
             "api_key": "18f4909568ec442da5e210931260603", "city": "Seoul", "utc_offset": 9.0,
             "time_format": "12", "temp_unit": "C", "temp_precision": "int",
-            "cache_duration": 300, "show_date": False  # increased default cache duration
+            "cache_duration": 900, "show_date": False  # increased default cache duration
         }
 
         def __init__(self):
