@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 # ====================== CONFIGURATION (EDIT HERE) ======================
 API_KEY = "18f4909568ec442da5e210931260603"                    # ← Put your WeatherAPI key here
 CITY = "Seoul"
-CACHE_DURATION_SECONDS = 900    # 15 minutes (weather refresh interval)
+CACHE_DURATION_SECONDS = 1800    # 15 minutes (weather refresh interval)
 # =======================================================================
 
 # In-memory cache (no files, no folders)
