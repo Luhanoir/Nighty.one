@@ -1,4 +1,3 @@
-import webbrowser
 import time
 from datetime import datetime, timezone, timedelta
 import os
@@ -8,7 +7,6 @@ import re
 
 def NightyWeather():
     RETRIES = 4
-    IMAGE_URL = ""
     SCRIPT_DATA_DIR = f"{getScriptsPath()}/scriptData"
     CONFIG_PATH = f"{SCRIPT_DATA_DIR}/NightyWeather.json"
     CACHE_PATH = f"{SCRIPT_DATA_DIR}/NightyWeatherCache.json"
@@ -190,28 +188,6 @@ def NightyWeather():
     container = tab.create_container(type="rows")
     card = container.create_card(height="full", width="full", gap=3)
 
-    try:
-        card.create_ui_element(
-            UI.Image,
-            url=IMAGE_URL,
-            alt="Weather Showcase",
-            width="100%",
-            height="200px",
-            rounded="md",
-            fill_type="contain",
-            border_color="#4B5EAA",
-            border_width=2,
-            margin="m-2",
-            shadow=True
-        )
-    except Exception as e:
-        print(f"Failed to load image: {str(e)}. Showing placeholder.", type="ERROR")
-        card.create_ui_element(
-            UI.Text,
-            content="⚠️ Unable to load weather image.",
-            full_width=True
-        )
-
     card.create_ui_element(
         UI.Input,
         label="API Key 🔑",
@@ -317,20 +293,6 @@ def NightyWeather():
         full_width=True
     )
 
-    def open_weatherapi():
-        webbrowser.open("https://www.weatherapi.com/")
-        print("Opening WeatherAPI website... 🌐", type="INFO")
-
-    card.create_ui_element(
-        UI.Button,
-        label="Visit WeatherAPI 🌐",
-        variant="solid",
-        size="md",
-        color="default",
-        full_width=True,
-        onClick=open_weatherapi
-    )
-
     # ---------------------------
     # Robust fetch implementation (HTTPS only)
     # ---------------------------
@@ -362,8 +324,8 @@ def NightyWeather():
             session = requests.Session()
 
             backoff_base = 2
-            connect_timeout = 5  # seconds
-            read_timeout = 10    # seconds
+            connect_timeout = 5
+            read_timeout = 10
 
             last_exception = None
             for attempt in range(1, RETRIES + 1):
@@ -403,20 +365,12 @@ def NightyWeather():
                 except requests.exceptions.ConnectTimeout as e:
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(
-                        f"Connect timed out. Retrying in {wait_time}s... "
-                        f"(attempt {attempt}/{RETRIES})",
-                        type="WARNING"
-                    )
+                    print(f"Connect timed out. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
                     time.sleep(wait_time)
                 except requests.exceptions.ReadTimeout as e:
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(
-                        f"Read timed out. Retrying in {wait_time}s... "
-                        f"(attempt {attempt}/{RETRIES})",
-                        type="WARNING"
-                    )
+                    print(f"Read timed out. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
                     time.sleep(wait_time)
                 except requests.exceptions.HTTPError as e:
                     status = getattr(e.response, "status_code", None)
@@ -428,20 +382,12 @@ def NightyWeather():
                         return cache.data.get("data")
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(
-                        f"Server error {status}. Retrying in {wait_time}s... "
-                        f"(attempt {attempt}/{RETRIES})",
-                        type="WARNING"
-                    )
+                    print(f"Server error {status}. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
                     time.sleep(wait_time)
                 except requests.exceptions.RequestException as e:
                     last_exception = e
                     wait_time = backoff_base ** attempt
-                    print(
-                        f"Request failed: {e}. Retrying in {wait_time}s... "
-                        f"(attempt {attempt}/{RETRIES})",
-                        type="WARNING"
-                    )
+                    print(f"Request failed: {e}. Retrying in {wait_time}s... (attempt {attempt}/{RETRIES})", type="WARNING")
                     time.sleep(wait_time)
 
             if last_exception:
